@@ -23,7 +23,7 @@ public record AuthResponse(string AccessToken, string RefreshToken, DateTime Acc
 /// тоді код із листа треба підтвердити через POST /api/auth/2fa.
 /// </summary>
 public record LoginResponse(bool RequiresTwoFactor, string? ChallengeId, string? Message,
-    string? AccessToken, string? RefreshToken, DateTime? AccessExpiresAt, UserInfo? User)
+    string? AccessToken, string? RefreshToken, DateTime? AccessExpiresAt, UserInfo? User, string? DevHint = null)
 {
     public static LoginResponse From(AuthResponse a) =>
         new(false, null, null, a.AccessToken, a.RefreshToken, a.AccessExpiresAt, a.User);

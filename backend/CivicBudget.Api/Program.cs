@@ -44,10 +44,10 @@ builder.Services.AddRateLimiter(o =>
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.OnRejected = async (ctx, ct) =>
         await ctx.HttpContext.Response.WriteAsJsonAsync(new { message = "Забагато запитів. Зачекайте хвилину й спробуйте знову.", code = 429 }, ct);
-    // вхід, 2FA, реєстрація: 10 спроб за хвилину з однієї IP-адреси
+    // вхід, 2FA, реєстрація: 30 спроб за хвилину з однієї IP-адреси
     o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1) }));
     // загальне обмеження для API: 600 запитів за хвилину з однієї IP-адреси
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",

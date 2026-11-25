@@ -39,32 +39,32 @@ public class ImplementationRepository : IImplementationRepository
     private readonly CivicBudgetContext _db;
     public ImplementationRepository(CivicBudgetContext db) => _db = db;
 
-    /// <summary>«Хід реалізації»: join картки з уявленням прогресу, проєктом і підрядником (синтаксис запитів LINQ).</summary>
-    private IQueryable<ImplementationListItem> ListQuery() =>
+    /// <summary>
+    /// «Хід реалізації»: join картки з уявленням прогресу, проєктом і підрядником (синтаксис запитів LINQ).
+    /// Фільтри (кампанія, підрядник, картка) застосовуються до join, ще до проєкції в модель.
+    /// </summary>
+    private IQueryable<ImplementationListItem> ListQuery(short? campaignId = null, int? contractorId = null, int? implementationId = null) =>
         from i in _db.Implementations
         join v in _db.VwImplementationProgresses on i.ImplementationId equals v.ImplementationId
         join p in _db.Projects on i.ProjectId equals p.ProjectId
         join c in _db.Contractors on i.ContractorId equals c.ContractorId
+        where (campaignId == null || p.CampaignId == campaignId)
+              && (contractorId == null || i.ContractorId == contractorId)
+              && (implementationId == null || i.ImplementationId == implementationId)
+        orderby p.CampaignId descending, p.Title
         select new ImplementationListItem(
             i.ImplementationId, p.ProjectId, p.RegNumber, p.Title, p.CampaignCategory.Campaign.CampaignYear,
             p.CampaignCategory.Category.Name, p.District.Name, c.ContractorId, c.Name, i.Status,
             i.PlannedBudget, v.ActualCost, v.StagesTotal ?? 0, v.StagesDone,
             i.StartDate, i.PlannedEndDate, i.ActualEndDate,
-            i.ImplementationStages.SelectMany(s => s.Reports).Count(r => r.Status == "submitted"));
+            _db.Reports.Count(r => r.Stage.ImplementationId == i.ImplementationId && r.Status == "submitted"));
 
-    public Task<List<ImplementationListItem>> GetListAsync(short? campaignId, int? contractorId)
-    {
-        var q = ListQuery();
-        if (campaignId.HasValue)
-            q = q.Where(x => _db.Projects.Any(p => p.ProjectId == x.ProjectId && p.CampaignId == campaignId));
-        if (contractorId.HasValue)
-            q = q.Where(x => x.ContractorId == contractorId);
-        return q.OrderByDescending(x => x.CampaignYear).ThenBy(x => x.Title).AsNoTracking().ToListAsync();
-    }
+    public Task<List<ImplementationListItem>> GetListAsync(short? campaignId, int? contractorId) =>
+        ListQuery(campaignId, contractorId).AsNoTracking().ToListAsync();
 
     public async Task<ImplementationDetails?> GetDetailsAsync(int implementationId, bool onlyAcceptedReports)
     {
-        var summary = await ListQuery().AsNoTracking().FirstOrDefaultAsync(x => x.ImplementationId == implementationId);
+        var summary = await ListQuery(implementationId: implementationId).AsNoTracking().FirstOrDefaultAsync();
         if (summary == null) return null;
 
         var contractor = await _db.Contractors.AsNoTracking().FirstAsync(c => c.ContractorId == summary.ContractorId);

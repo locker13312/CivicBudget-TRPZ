@@ -180,8 +180,10 @@ public static class ReportExporter
             {
                 for (int i = 0; i < t.Columns.Length; i++)
                 {
-                    if (t.NumericColumns.Contains(i) || t.Columns[i].Length <= 3) cols.ConstantColumn(Math.Max(42, 7 * t.Columns[i].Length));
-                    else cols.RelativeColumn(i == 1 ? 3 : 2);
+                    var name = t.Columns[i];
+                    if (t.NumericColumns.Contains(i) || name.Length <= 3) cols.ConstantColumn(Math.Max(42, 7 * name.Length));
+                    else if (name == "Номер") cols.ConstantColumn(80);
+                    else cols.RelativeColumn(name.StartsWith("Назва") || name is "Проєкт" or "Етап" or "Коментар" or "Звіт виконавця" ? 4 : 2);
                 }
             });
             table.Header(h =>

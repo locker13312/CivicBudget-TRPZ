@@ -30,10 +30,12 @@ public class AuthService
     private readonly HttpCurrentUser _currentUser;
     private readonly IMemoryCache _cache;
     private readonly MailOutbox _mail;
+    private readonly IWebHostEnvironment _env;
 
     public AuthService(IUserRepository users, IAuditRepository audit, JwtTokenService tokens, HttpCurrentUser currentUser,
-        IMemoryCache cache, MailOutbox mail)
+        IMemoryCache cache, MailOutbox mail, IWebHostEnvironment env)
     {
+        _env = env;
         _users = users;
         _audit = audit;
         _tokens = tokens;
@@ -85,8 +87,10 @@ public class AuthService
         _currentUser.Override(user.UserId);
         await _audit.WriteAsync(user.UserId, "login_2fa_sent", "UserAccount", user.UserId, null);
 
+        // лише в режимі Development: підказка, де лежить «лист» (справжньої пошти немає)
+        string? hint = _env.IsDevelopment() ? $"Демо-режим: лист із кодом записано файлом у папку {_mail.Folder}" : null;
         return new LoginResponse(true, challengeId, $"Код підтвердження надіслано на {Mask(user.Email)}.",
-            null, null, null, null);
+            null, null, null, null, hint);
     }
 
     public async Task<AuthResponse> VerifyTwoFactorAsync(TwoFactorRequest request)
