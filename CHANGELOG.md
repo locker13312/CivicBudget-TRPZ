@@ -3,6 +3,11 @@
 Формат — [Keep a Changelog](https://keepachangelog.com/uk/1.1.0/), версії — [семантичне версіювання](https://semver.org/lang/uk/).
 Відповідність змін вимогам ТЗ і методички — у [docs/tz-traceability.md](docs/tz-traceability.md).
 
+## [Unreleased]
+
+### Виправлено
+- `start.bat` на новому комп'ютері не експортував HTTPS-сертифікат (папки `.certs` ще не було): клієнт запускався по HTTP, а браузер відкривався на `https://`.
+
 ## [1.1.0] — 2026-11-25
 
 ### Додано
@@ -47,5 +52,6 @@
 - БД `CivicBudget` (скрипт створення без змін) і демо-дані з перевіркою 6 навмисних порушень правил.
 - DAL: EF Core (Database First), репозиторії, ADO.NET для процедур і журналу аудиту; SignalR для результатів.
 
+[Unreleased]: https://github.com/locker13312/CivicBudget-TRPZ/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/locker13312/CivicBudget-TRPZ/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/locker13312/CivicBudget-TRPZ/releases/tag/v1.0.0
