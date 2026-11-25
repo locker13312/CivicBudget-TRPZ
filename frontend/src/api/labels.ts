@@ -1,0 +1,96 @@
+// Українські назви статусів і кодів, форматування сум і дат
+
+export const projectStatus: Record<string, string> = {
+  draft: 'Чернетка',
+  submitted: 'Подано',
+  moderation: 'На модерації',
+  revision: 'На доопрацюванні',
+  expertise: 'На експертизі',
+  rejected: 'Відхилено',
+  published: 'Опубліковано',
+  winner: 'Переможець',
+  not_selected: 'Не пройшов',
+  implementing: 'Реалізується',
+  completed: 'Реалізовано',
+}
+
+export const campaignStatus: Record<string, string> = {
+  draft: 'Підготовка',
+  submission: 'Подання проєктів',
+  review: 'Розгляд проєктів',
+  voting: 'Голосування',
+  counting: 'Підрахунок голосів',
+  implementation: 'Реалізація',
+  closed: 'Закрито',
+}
+
+export const campaignStatusOrder = [
+  'draft',
+  'submission',
+  'review',
+  'voting',
+  'counting',
+  'implementation',
+  'closed',
+]
+
+export const roleNames: Record<string, string> = {
+  resident: 'Мешканець',
+  moderator: 'Модератор',
+  expert: 'Експерт',
+  operator: 'Оператор',
+  executor: 'Виконавець',
+  admin: 'Адміністратор',
+}
+
+export const reviewType: Record<string, string> = {
+  moderation: 'Модерація',
+  technical: 'Технічна експертиза',
+  legal: 'Юридична експертиза',
+  financial: 'Фінансова експертиза',
+}
+
+export const decisionNames: Record<string, string> = {
+  approve: 'Допущено',
+  revise: 'На доопрацювання',
+  reject: 'Відхилено',
+}
+
+export const verificationNames: Record<string, string> = {
+  verified: 'Верифіковано',
+  pending: 'Очікує верифікації',
+  rejected: 'Відмовлено',
+}
+
+export const methodNames: Record<string, string> = { bankid: 'BankID', diia: 'Дія', passport: 'Паспорт' }
+
+export const auditActions: Record<string, string> = {
+  project_status: 'Зміна статусу проєкту',
+  login: 'Вхід (пароль)',
+  login_bankid: 'Вхід (BankID демо)',
+  campaign_status: 'Зміна етапу кампанії',
+  campaign_update: 'Зміна параметрів кампанії',
+  campaign_create: 'Створення кампанії',
+  user_roles: 'Зміна ролей',
+  user_block: 'Блокування',
+  user_unblock: 'Розблокування',
+}
+
+const money = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 2 })
+export const formatMoney = (v: number) => `${money.format(v)} грн`
+
+export const formatDate = (s: string | null | undefined) =>
+  s ? new Date(s).toLocaleDateString('uk-UA') : '—'
+
+export const formatDateTime = (s: string | null | undefined) =>
+  s ? new Date(s).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' }) : '—'
+
+export function plural(n: number, one: string, few: string, many: string) {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return one
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
+  return many
+}
+
+export const votesWord = (n: number) => `${n} ${plural(n, 'голос', 'голоси', 'голосів')}`

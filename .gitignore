@@ -1,0 +1,14 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+# Node
+node_modules/
+dist/
+# локальні файли застосунку (генеруються reset.ps1 і під час роботи)
+backend/CivicBudget.Api/uploads/
+backend/CivicBudget.Api/mail-outbox/
+# dev-сертифікат HTTPS (експортується локально)
+.certs/
+*.log
