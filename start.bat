@@ -2,7 +2,10 @@
 chcp 65001 >nul
 rem Запуск ІС «Громадський бюджет»: бекенд (https://localhost:7080) і фронтенд (https://localhost:5173)
 cd /d "%~dp0"
+rem dev-сертифікат ASP.NET Core експортується і для Vite, щоб клієнт теж працював по HTTPS;
+rem dotnet dev-certs не створює папку сам
 if not exist ".certs\localhost.pem" (
+  if not exist ".certs" mkdir .certs
   dotnet dev-certs https --export-path .certs\localhost.pem --format Pem --no-password
 )
 rem JWT-ключ живе поза репозиторієм (dotnet user-secrets); для нового клону генеруємо випадковий
