@@ -9,7 +9,7 @@ export const projectStatus: Record<string, string> = {
   rejected: 'Відхилено',
   published: 'Опубліковано',
   winner: 'Переможець',
-  not_selected: 'Не пройшов',
+  not_selected: 'Не відібрано',
   implementing: 'Реалізується',
   completed: 'Реалізовано',
 }
