@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CivicBudget.DAL", "CivicBud
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CivicBudget.Api", "CivicBudget.Api\CivicBudget.Api.csproj", "{B0ADD00B-22D8-483F-B57A-A8D1A52888E4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CivicBudget.Tests", "CivicBudget.Tests\CivicBudget.Tests.csproj", "{874B5D2B-8A1C-4EB4-B3BF-74B431B566A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{B0ADD00B-22D8-483F-B57A-A8D1A52888E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B0ADD00B-22D8-483F-B57A-A8D1A52888E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B0ADD00B-22D8-483F-B57A-A8D1A52888E4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{874B5D2B-8A1C-4EB4-B3BF-74B431B566A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{874B5D2B-8A1C-4EB4-B3BF-74B431B566A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{874B5D2B-8A1C-4EB4-B3BF-74B431B566A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{874B5D2B-8A1C-4EB4-B3BF-74B431B566A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

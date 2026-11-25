@@ -115,6 +115,18 @@ cd frontend; npm install; npm run dev
 На цьому стенді служба SQL Browser вимкнена, тому `sqlcmd` підключається через іменований канал:
 `sqlcmd -S "np:\\.\pipe\MSSQL$SQLEXPRESS\sql\query" -E -C -i db\CivicBudget_create.sql`.
 
+## Тести
+
+```powershell
+cd backend
+dotnet test                                   # усі тести (потрібна БД CivicBudget у демо-стані — reset.bat)
+dotnet test --filter Category!=Database       # лише модульні, без БД
+```
+
+- `ServiceRulesTests` — правила в сервісах (голосування, подання, модерація, дублікати, параметри кампанії, рейтинг переможців); репозиторії підмінено NSubstitute.
+- `DatabaseRulesTests` — правила, які перевіряє БД: тригер `TR_Vote_CheckRules` (50001–50005), `usp_SubmitProject` (50012), `usp_SelectWinners` (ліміт категорії, 50020) і їхній переклад у повідомлення. Кожен тест працює у власній транзакції з відкатом.
+- `ReportExporterTests` — експорт звітів у PDF, XLSX і CSV.
+
 ## Демо-облікові записи
 
 Пароль для всіх: `Demo123!`. На сторінці входу є список: клік підставляє логін.
@@ -146,6 +158,7 @@ cd frontend; npm install; npm run dev
 CivicBudget-TRPZ/
 ├─ backend/
 │  ├─ CivicBudget.sln
+│  ├─ CivicBudget.Tests/      xUnit: правила сервісів, правила БД, експорт звітів
 │  ├─ CivicBudget.DAL/        Entities/ (scaffold), CivicBudgetContext, Models/, Repositories/ (EF), Sql/ (ADO.NET), Infrastructure/
 │  └─ CivicBudget.Api/        Controllers/, Services/, Reports/, Dto/, Auth/, Hubs/, Infrastructure/
 ├─ frontend/src/              api/, auth/, components/, pages/, help/, locales/
