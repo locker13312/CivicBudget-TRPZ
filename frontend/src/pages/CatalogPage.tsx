@@ -1,5 +1,19 @@
 import { AppstoreOutlined, EnvironmentOutlined, SearchOutlined } from '@ant-design/icons'
-import { Button, Card, Col, Empty, Flex, Input, InputNumber, Pagination, Row, Segmented, Select, Skeleton, Typography } from 'antd'
+import {
+  Button,
+  Card,
+  Col,
+  Empty,
+  Flex,
+  Input,
+  InputNumber,
+  Pagination,
+  Row,
+  Segmented,
+  Select,
+  Skeleton,
+  Typography,
+} from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
@@ -30,7 +44,8 @@ export function CatalogPage() {
 
   // кампанія за замовчуванням — поточна; "all" — усі кампанії
   const campaignParam = params.get('campaignId')
-  const campaignId = campaignParam === 'all' ? undefined : (campaignParam ?? refs.data?.current?.campaignId?.toString())
+  const campaignId =
+    campaignParam === 'all' ? undefined : (campaignParam ?? refs.data?.current?.campaignId?.toString())
 
   const filter = useMemo(
     () => ({
@@ -54,7 +69,8 @@ export function CatalogPage() {
     [ready, view, filter, page],
   )
   const map = useLoad(
-    () => (ready && view === 'map' ? api<MapPoint[]>(`/api/projects/map${query(filter)}`) : Promise.resolve(null)),
+    () =>
+      ready && view === 'map' ? api<MapPoint[]>(`/api/projects/map${query(filter)}`) : Promise.resolve(null),
     [ready, view, filter],
   )
 
@@ -179,7 +195,11 @@ export function CatalogPage() {
                 </Flex>
               </Col>
               <Col>
-                <Button onClick={() => setParams(new URLSearchParams(view === 'map' ? { view } : {}), { replace: true })}>
+                <Button
+                  onClick={() =>
+                    setParams(new URLSearchParams(view === 'map' ? { view } : {}), { replace: true })
+                  }
+                >
                   {t('Скинути фільтри')}
                 </Button>
               </Col>

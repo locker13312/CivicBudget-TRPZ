@@ -149,9 +149,12 @@ function ProjectForm({
       address: p?.address ?? '',
       categoryId: p?.categoryId,
       districtId: p?.districtId,
-      budgetItems: p?.budgetItems.map((b) => ({ name: b.name, unit: b.unit, quantity: b.quantity, unitPrice: b.unitPrice })) ?? [
-        { ...emptyItem },
-      ],
+      budgetItems: p?.budgetItems.map((b) => ({
+        name: b.name,
+        unit: b.unit,
+        quantity: b.quantity,
+        unitPrice: b.unitPrice,
+      })) ?? [{ ...emptyItem }],
     }),
     [p],
   )
@@ -207,7 +210,12 @@ function ProjectForm({
       // подання — збережена процедура usp_SubmitProject (перевірки 50010–50015 у БД)
       const r = await api<SubmitResult>(`/api/my/projects/${pid}/submit`, { method: 'POST' })
       navigate('/my/projects', {
-        state: { flash: t('Проєкт подано: {{reg}}, вартість {{cost}}. Він передається на модерацію.', { reg: r.regNumber, cost: formatMoney(r.estimatedCost) }) },
+        state: {
+          flash: t('Проєкт подано: {{reg}}, вартість {{cost}}. Він передається на модерацію.', {
+            reg: r.regNumber,
+            cost: formatMoney(r.estimatedCost),
+          }),
+        },
       })
     } catch (e) {
       setError((e as Error).message)
@@ -222,7 +230,10 @@ function ProjectForm({
     const fd = new FormData()
     fd.append('file', file)
     try {
-      const a = await api<AttachmentItem>(`/api/my/projects/${p.projectId}/attachments`, { method: 'POST', body: fd })
+      const a = await api<AttachmentItem>(`/api/my/projects/${p.projectId}/attachments`, {
+        method: 'POST',
+        body: fd,
+      })
       setAttachments((x) => [...x, a])
       message.success(t('Файл додано: {{name}}', { name: a.fileName }))
     } catch (e) {
@@ -235,9 +246,12 @@ function ProjectForm({
     setAttachments((x) => x.filter((y) => y.attachmentId !== a.attachmentId))
   }
 
-  const openFile = async (a: AttachmentItem) => window.open(await blobUrl(`/api/files/${a.attachmentId}`), '_blank')
+  const openFile = async (a: AttachmentItem) =>
+    window.open(await blobUrl(`/api/files/${a.attachmentId}`), '_blank')
 
-  const openCategories = refs.categories.filter((c) => campaign.categories.some((cc) => cc.categoryId === c.id))
+  const openCategories = refs.categories.filter((c) =>
+    campaign.categories.some((cc) => cc.categoryId === c.id),
+  )
 
   return (
     <>
@@ -275,7 +289,16 @@ function ProjectForm({
           action={<Link to={`/projects/${p!.projectId}`}>{t('Картка проєкту')}</Link>}
         />
       )}
-      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} closable onClose={() => setError(null)} />}
+      {error && (
+        <Alert
+          type="error"
+          showIcon
+          message={error}
+          style={{ marginBottom: 16 }}
+          closable
+          onClose={() => setError(null)}
+        />
+      )}
 
       <Form form={form} layout="vertical" initialValues={initial} disabled={readOnly} requiredMark="optional">
         <Row gutter={[24, 0]}>
@@ -315,13 +338,25 @@ function ProjectForm({
               )}
               <Row gutter={16}>
                 <Col xs={24} sm={12}>
-                  <Form.Item name="categoryId" label={t('Категорія')} rules={[{ required: true, message: t('Оберіть категорію.') }]}>
+                  <Form.Item
+                    name="categoryId"
+                    label={t('Категорія')}
+                    rules={[{ required: true, message: t('Оберіть категорію.') }]}
+                  >
                     <Select options={openCategories.map((c) => ({ value: c.id, label: t(c.name) }))} />
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
-                  <Form.Item name="districtId" label={t('Район')} rules={[{ required: true, message: t('Оберіть район.') }]}>
-                    <Select showSearch optionFilterProp="label" options={refs.districts.map((d) => ({ value: d.id, label: t(d.name) }))} />
+                  <Form.Item
+                    name="districtId"
+                    label={t('Район')}
+                    rules={[{ required: true, message: t('Оберіть район.') }]}
+                  >
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      options={refs.districts.map((d) => ({ value: d.id, label: t(d.name) }))}
+                    />
                   </Form.Item>
                 </Col>
               </Row>
@@ -355,7 +390,10 @@ function ProjectForm({
                       return (
                         <Row gutter={8} key={f.key} align="top" wrap={false}>
                           <Col flex="auto">
-                            <Form.Item name={[f.name, 'name']} rules={[{ required: true, message: t('Назва позиції') }]}>
+                            <Form.Item
+                              name={[f.name, 'name']}
+                              rules={[{ required: true, message: t('Назва позиції') }]}
+                            >
                               <Input placeholder={t('Напр., лавка паркова')} />
                             </Form.Item>
                           </Col>
@@ -370,11 +408,16 @@ function ProjectForm({
                             </Form.Item>
                           </Col>
                           <Col style={{ width: 130 }}>
-                            <Form.Item name={[f.name, 'unitPrice']} rules={[{ required: true, message: ' ' }]}>
+                            <Form.Item
+                              name={[f.name, 'unitPrice']}
+                              rules={[{ required: true, message: ' ' }]}
+                            >
                               <InputNumber min={0} step={1000} style={{ width: '100%' }} />
                             </Form.Item>
                           </Col>
-                          <Col style={{ width: 130, textAlign: 'right', paddingTop: 5 }}>{formatMoney(amount)}</Col>
+                          <Col style={{ width: 130, textAlign: 'right', paddingTop: 5 }}>
+                            {formatMoney(amount)}
+                          </Col>
                           <Col style={{ width: 40 }}>
                             <Button
                               type="text"
@@ -389,7 +432,12 @@ function ProjectForm({
                       )
                     })}
                     {!readOnly && (
-                      <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ ...emptyItem, name: '' })} block>
+                      <Button
+                        type="dashed"
+                        icon={<PlusOutlined />}
+                        onClick={() => add({ ...emptyItem, name: '' })}
+                        block
+                      >
                         {t('Додати позицію')}
                       </Button>
                     )}
@@ -411,21 +459,36 @@ function ProjectForm({
                 valueStyle={{ color: costOk ? '#2e7d32' : '#c62828' }}
               />
               <Typography.Paragraph type="secondary" style={{ marginTop: 4 }}>
-                {t('Допустимо')}: {formatMoney(campaign.minProjectCost)} — {formatMoney(campaign.maxProjectCost)}
+                {t('Допустимо')}: {formatMoney(campaign.minProjectCost)} —{' '}
+                {formatMoney(campaign.maxProjectCost)}
               </Typography.Paragraph>
               {!readOnly && (
                 <Flex vertical gap={8}>
-                  <Button icon={<SaveOutlined />} block loading={busy === 'save'} disabled={!!busy} onClick={() => void onSave()}>
+                  <Button
+                    icon={<SaveOutlined />}
+                    block
+                    loading={busy === 'save'}
+                    disabled={!!busy}
+                    onClick={() => void onSave()}
+                  >
                     {t('Зберегти чернетку')}
                   </Button>
                   <Popconfirm
                     title={t('Подати проєкт на розгляд?')}
-                    description={t('Після подання редагувати можна буде лише після повернення на доопрацювання.')}
+                    description={t(
+                      'Після подання редагувати можна буде лише після повернення на доопрацювання.',
+                    )}
                     okText={t('Подати')}
                     cancelText={t('Скасувати')}
                     onConfirm={() => void onSubmit()}
                   >
-                    <Button type="primary" icon={<SendOutlined />} block loading={busy === 'submit'} disabled={!!busy}>
+                    <Button
+                      type="primary"
+                      icon={<SendOutlined />}
+                      block
+                      loading={busy === 'submit'}
+                      disabled={!!busy}
+                    >
                       {p?.status === 'revision' ? t('Подати повторно') : t('Подати')}
                     </Button>
                   </Popconfirm>
@@ -434,10 +497,17 @@ function ProjectForm({
             </Card>
 
             <Card title={t('Місце на карті')} style={{ marginBottom: 24 }} styles={{ body: { padding: 12 } }}>
-              <PointPicker lat={point.lat} lng={point.lng} disabled={readOnly} onChange={(lat, lng) => setPoint({ lat, lng })} />
+              <PointPicker
+                lat={point.lat}
+                lng={point.lng}
+                disabled={readOnly}
+                onChange={(lat, lng) => setPoint({ lat, lng })}
+              />
               <Flex justify="space-between" align="center" style={{ marginTop: 8 }}>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {point.lat != null ? `${point.lat}, ${point.lng}` : t('Клацніть на карті, щоб позначити місце')}
+                  {point.lat != null
+                    ? `${point.lat}, ${point.lng}`
+                    : t('Клацніть на карті, щоб позначити місце')}
                 </Typography.Text>
                 {point.lat != null && !readOnly && (
                   <Button size="small" type="link" onClick={() => setPoint({ lat: null, lng: null })}>
@@ -456,21 +526,38 @@ function ProjectForm({
                   <List
                     size="small"
                     dataSource={attachments}
-                    locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('Файлів немає')} /> }}
+                    locale={{
+                      emptyText: (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('Файлів немає')} />
+                      ),
+                    }}
                     renderItem={(a) => (
                       <List.Item
                         actions={
                           readOnly
                             ? []
                             : [
-                                <Popconfirm key="d" title={t('Видалити файл?')} onConfirm={() => void remove(a)} okText={t('Так')} cancelText={t('Ні')}>
-                                  <Button type="text" danger size="small" icon={<DeleteOutlined />} aria-label={t('Видалити')} />
+                                <Popconfirm
+                                  key="d"
+                                  title={t('Видалити файл?')}
+                                  onConfirm={() => void remove(a)}
+                                  okText={t('Так')}
+                                  cancelText={t('Ні')}
+                                >
+                                  <Button
+                                    type="text"
+                                    danger
+                                    size="small"
+                                    icon={<DeleteOutlined />}
+                                    aria-label={t('Видалити')}
+                                  />
                                 </Popconfirm>,
                               ]
                         }
                       >
                         <a onClick={() => void openFile(a)}>
-                          {a.mimeType === 'application/pdf' ? <FilePdfOutlined /> : <FileImageOutlined />} {a.fileName}
+                          {a.mimeType === 'application/pdf' ? <FilePdfOutlined /> : <FileImageOutlined />}{' '}
+                          {a.fileName}
                         </a>
                       </List.Item>
                     )}
@@ -492,7 +579,9 @@ function ProjectForm({
                   )}
                 </>
               ) : (
-                <Typography.Text type="secondary">{t('Збережіть чернетку, щоб додати фото й документи.')}</Typography.Text>
+                <Typography.Text type="secondary">
+                  {t('Збережіть чернетку, щоб додати фото й документи.')}
+                </Typography.Text>
               )}
             </Card>
           </Col>

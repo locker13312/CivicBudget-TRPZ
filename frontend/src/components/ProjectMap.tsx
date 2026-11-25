@@ -9,6 +9,7 @@ import type { MapPoint } from '../api/types'
 
 // Карта OpenStreetMap (ТЗ ч.1 п.4.8) на Leaflet. Точки — кола кольору статусу (без файлів іконок).
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const KYIV: LatLngExpression = [50.4501, 30.5234]
 const TILE = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 const ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -26,7 +27,11 @@ function FitBounds({ points }: { points: MapPoint[] }) {
   useEffect(() => {
     if (points.length === 0) return
     if (points.length === 1) map.setView([points[0].latitude, points[0].longitude], 14)
-    else map.fitBounds(points.map((p) => [p.latitude, p.longitude] as [number, number]), { padding: [40, 40], maxZoom: 14 })
+    else
+      map.fitBounds(
+        points.map((p) => [p.latitude, p.longitude] as [number, number]),
+        { padding: [40, 40], maxZoom: 14 },
+      )
   }, [map, points])
   return null
 }
@@ -43,7 +48,12 @@ export function ProjectsMap({ points, height = 520 }: { points: MapPoint[]; heig
           key={p.projectId}
           center={[p.latitude, p.longitude]}
           radius={10}
-          pathOptions={{ color: '#fff', weight: 2, fillColor: pointColor[p.status] ?? '#1f5c99', fillOpacity: 0.95 }}
+          pathOptions={{
+            color: '#fff',
+            weight: 2,
+            fillColor: pointColor[p.status] ?? '#1f5c99',
+            fillOpacity: 0.95,
+          }}
         >
           <Tooltip>{p.title}</Tooltip>
           <Popup>
@@ -67,15 +77,26 @@ export function ProjectsMap({ points, height = 520 }: { points: MapPoint[]; heig
 /** Одна точка (картка проєкту). */
 export function SinglePointMap({ lat, lng, height = 260 }: { lat: number; lng: number; height?: number }) {
   return (
-    <MapContainer center={[lat, lng]} zoom={15} style={{ height, width: '100%', borderRadius: 8 }} scrollWheelZoom={false}>
+    <MapContainer
+      center={[lat, lng]}
+      zoom={15}
+      style={{ height, width: '100%', borderRadius: 8 }}
+      scrollWheelZoom={false}
+    >
       <TileLayer url={TILE} attribution={ATTR} />
-      <CircleMarker center={[lat, lng]} radius={11} pathOptions={{ color: '#fff', weight: 3, fillColor: '#1f5c99', fillOpacity: 1 }} />
+      <CircleMarker
+        center={[lat, lng]}
+        radius={11}
+        pathOptions={{ color: '#fff', weight: 3, fillColor: '#1f5c99', fillOpacity: 1 }}
+      />
     </MapContainer>
   )
 }
 
 function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }) {
-  useMapEvents({ click: (e: LeafletMouseEvent) => onPick(+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)) })
+  useMapEvents({
+    click: (e: LeafletMouseEvent) => onPick(+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)),
+  })
   return null
 }
 
@@ -100,7 +121,11 @@ export function PointPicker({
       <TileLayer url={TILE} attribution={ATTR} />
       {!disabled && <ClickHandler onPick={onChange} />}
       {lat != null && lng != null && (
-        <CircleMarker center={[lat, lng]} radius={11} pathOptions={{ color: '#fff', weight: 3, fillColor: '#c62828', fillOpacity: 1 }} />
+        <CircleMarker
+          center={[lat, lng]}
+          radius={11}
+          pathOptions={{ color: '#fff', weight: 3, fillColor: '#c62828', fillOpacity: 1 }}
+        />
       )}
     </MapContainer>
   )

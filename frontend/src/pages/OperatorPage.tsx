@@ -1,5 +1,21 @@
 import { FileDoneOutlined, UserOutlined } from '@ant-design/icons'
-import { Alert, App, Button, Card, Col, Descriptions, Empty, InputNumber, Result, Row, Select, Spin, Statistic, Table, Tag } from 'antd'
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Empty,
+  InputNumber,
+  Result,
+  Row,
+  Select,
+  Spin,
+  Statistic,
+  Table,
+  Tag,
+} from 'antd'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
@@ -16,7 +32,9 @@ export function OperatorPage() {
     return {
       campaign,
       refs: await api<References>('/api/reference'),
-      projects: await api<PagedResult<ProjectListItem>>(`/api/projects?campaignId=${campaign.campaignId}&status=published&pageSize=100&sort=title`),
+      projects: await api<PagedResult<ProjectListItem>>(
+        `/api/projects?campaignId=${campaign.campaignId}&status=published&pageSize=100&sort=title`,
+      ),
     }
   }, [])
   const [voters, setVoters] = useState<UserRow[]>([])
@@ -142,14 +160,18 @@ export function OperatorPage() {
                     type="info"
                     showIcon
                     style={{ marginTop: 16 }}
-                    message={t('Перевірки (вік, верифікація, ліміти, один спосіб голосування) виконує база даних.')}
+                    message={t(
+                      'Перевірки (вік, верифікація, ліміти, один спосіб голосування) виконує база даних.',
+                    )}
                   />
                 </Card>
               </Col>
               <Col xs={24} lg={15}>
                 <Card
                   title={t('2. Позначки в бюлетені')}
-                  extra={<Statistic value={total} suffix={`/ ${c!.votesPerVoter}`} valueStyle={{ fontSize: 18 }} />}
+                  extra={
+                    <Statistic value={total} suffix={`/ ${c!.votesPerVoter}`} valueStyle={{ fontSize: 18 }} />
+                  }
                 >
                   {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
                   <Table
@@ -171,7 +193,13 @@ export function OperatorPage() {
                           </>
                         ),
                       },
-                      { title: t('Вартість'), dataIndex: 'cost', align: 'right', width: 120, render: (v: number) => formatMoney(v) },
+                      {
+                        title: t('Вартість'),
+                        dataIndex: 'cost',
+                        align: 'right',
+                        width: 120,
+                        render: (v: number) => formatMoney(v),
+                      },
                       {
                         title: t('Голосів'),
                         width: 110,

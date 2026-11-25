@@ -9,9 +9,9 @@ import { useTranslation } from 'react-i18next'
 import App from './App'
 import './i18n'
 import './index.css'
-import './legacy.css'
 import { theme } from './theme'
 
+// eslint-disable-next-line react-refresh/only-export-components
 function Root() {
   const { i18n } = useTranslation()
   const en = i18n.language === 'en'

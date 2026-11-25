@@ -1,5 +1,31 @@
-import { ArrowLeftOutlined, BellFilled, BellOutlined, BuildOutlined, FilePdfOutlined, LikeOutlined, PlusOutlined } from '@ant-design/icons'
-import { Alert, App, Button, Card, Col, Descriptions, Empty, Flex, Image, List, Row, Space, Statistic, Table, Tag, Timeline, Typography } from 'antd'
+import {
+  ArrowLeftOutlined,
+  BellFilled,
+  BellOutlined,
+  BuildOutlined,
+  FilePdfOutlined,
+  LikeOutlined,
+  PlusOutlined,
+} from '@ant-design/icons'
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Empty,
+  Flex,
+  Image,
+  List,
+  Row,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Timeline,
+  Typography,
+} from 'antd'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -19,7 +45,9 @@ export function ProjectPage() {
   // SignalR: голоси оновлюються наживо
   useVotesChanged((projectId) => {
     if (projectId === 0 || projectId === Number(id))
-      void api<ProjectDetails>(`/api/projects/${id}`).then(setData).catch(() => undefined)
+      void api<ProjectDetails>(`/api/projects/${id}`)
+        .then(setData)
+        .catch(() => undefined)
   })
 
   return (
@@ -56,7 +84,10 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
   }, [user, p.projectId])
 
   useEffect(() => {
-    if (canVote) api<MyBallot>('/api/voting/my').then(setBallot).catch(() => undefined)
+    if (canVote)
+      api<MyBallot>('/api/voting/my')
+        .then(setBallot)
+        .catch(() => undefined)
   }, [canVote])
 
   const toggleSubscription = async () => {
@@ -100,7 +131,10 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
         extra={
           <>
             {user && subscribed !== null && (
-              <Button icon={subscribed ? <BellFilled /> : <BellOutlined />} onClick={() => void toggleSubscription()}>
+              <Button
+                icon={subscribed ? <BellFilled /> : <BellOutlined />}
+                onClick={() => void toggleSubscription()}
+              >
                 {subscribed ? t('Ви стежите') : t('Стежити')}
               </Button>
             )}
@@ -117,7 +151,9 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
           message={
             <>
               {t('Проєкт позначено як дублікат')}{' '}
-              <Link to={`/projects/${p.duplicateOfId}`}>{p.duplicateOfRegNumber ?? `#${p.duplicateOfId}`}</Link>
+              <Link to={`/projects/${p.duplicateOfId}`}>
+                {p.duplicateOfRegNumber ?? `#${p.duplicateOfId}`}
+              </Link>
             </>
           }
         />
@@ -128,11 +164,23 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
           <Card styles={{ body: { padding: 0 } }} style={{ overflow: 'hidden', marginBottom: 24 }}>
             {images.length > 0 ? (
               <Image.PreviewGroup>
-                <Image src={`/api/files/${images[0].attachmentId}`} width="100%" height={340} style={{ objectFit: 'cover' }} alt={p.title} />
+                <Image
+                  src={`/api/files/${images[0].attachmentId}`}
+                  width="100%"
+                  height={340}
+                  style={{ objectFit: 'cover' }}
+                  alt={p.title}
+                />
                 {images.length > 1 && (
                   <Flex gap={8} style={{ padding: 8 }} wrap>
                     {images.slice(1).map((a) => (
-                      <Image key={a.attachmentId} src={`/api/files/${a.attachmentId}`} width={110} height={76} style={{ objectFit: 'cover', borderRadius: 6 }} />
+                      <Image
+                        key={a.attachmentId}
+                        src={`/api/files/${a.attachmentId}`}
+                        width={110}
+                        height={76}
+                        style={{ objectFit: 'cover', borderRadius: 6 }}
+                      />
                     ))}
                   </Flex>
                 )}
@@ -148,7 +196,9 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
                 {p.summary}
               </Typography.Paragraph>
             )}
-            <Typography.Paragraph style={{ whiteSpace: 'pre-line', marginBottom: 0 }}>{p.description ?? '—'}</Typography.Paragraph>
+            <Typography.Paragraph style={{ whiteSpace: 'pre-line', marginBottom: 0 }}>
+              {p.description ?? '—'}
+            </Typography.Paragraph>
             {docs.length > 0 && (
               <List
                 size="small"
@@ -177,8 +227,18 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
                 { title: t('Позиція'), dataIndex: 'name' },
                 { title: t('Од.'), dataIndex: 'unit', width: 70 },
                 { title: t('К-сть'), dataIndex: 'quantity', align: 'right', width: 80 },
-                { title: t('Ціна'), dataIndex: 'unitPrice', align: 'right', render: (v: number) => formatMoney(v) },
-                { title: t('Сума'), dataIndex: 'amount', align: 'right', render: (v: number) => <b>{formatMoney(v)}</b> },
+                {
+                  title: t('Ціна'),
+                  dataIndex: 'unitPrice',
+                  align: 'right',
+                  render: (v: number) => formatMoney(v),
+                },
+                {
+                  title: t('Сума'),
+                  dataIndex: 'amount',
+                  align: 'right',
+                  render: (v: number) => <b>{formatMoney(v)}</b>,
+                },
               ]}
               summary={() => (
                 <Table.Summary.Row>
@@ -215,7 +275,13 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
 
         <Col xs={24} lg={8}>
           <Card style={{ marginBottom: 24 }}>
-            <Statistic title={t('Орієнтовна вартість')} value={p.cost} suffix={t('грн')} groupSeparator=" " precision={0} />
+            <Statistic
+              title={t('Орієнтовна вартість')}
+              value={p.cost}
+              suffix={t('грн')}
+              groupSeparator=" "
+              precision={0}
+            />
             <Row gutter={12} style={{ marginTop: 16 }}>
               <Col span={12}>
                 <Statistic title={t('Голоси')} value={p.totalVotes} prefix={<LikeOutlined />} />
@@ -240,19 +306,32 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
                   {t('Голосувати')}
                 </Button>
                 {ballot && (
-                  <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, textAlign: 'center' }}>
-                    {t('Ваших голосів за проєкт')}: {myVotes} / {ballot.maxVotesPerProject} · {t('лишилось')}: {ballot.remaining}
+                  <Typography.Paragraph
+                    type="secondary"
+                    style={{ marginTop: 8, marginBottom: 0, textAlign: 'center' }}
+                  >
+                    {t('Ваших голосів за проєкт')}: {myVotes} / {ballot.maxVotesPerProject} · {t('лишилось')}:{' '}
+                    {ballot.remaining}
                   </Typography.Paragraph>
                 )}
               </>
             )}
             {!user && p.status === 'published' && p.campaignStatus === 'voting' && (
-              <Button block size="large" onClick={() => navigate('/login', { state: { from: `/projects/${p.projectId}` } })}>
+              <Button
+                block
+                size="large"
+                onClick={() => navigate('/login', { state: { from: `/projects/${p.projectId}` } })}
+              >
                 {t('Увійдіть, щоб голосувати')}
               </Button>
             )}
             {p.implementationId && (
-              <Button block icon={<BuildOutlined />} style={{ marginTop: 8 }} onClick={() => navigate(`/implementation/${p.implementationId}`)}>
+              <Button
+                block
+                icon={<BuildOutlined />}
+                style={{ marginTop: 8 }}
+                onClick={() => navigate(`/implementation/${p.implementationId}`)}
+              >
                 {t('Хід реалізації')}
               </Button>
             )}

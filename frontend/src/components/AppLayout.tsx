@@ -20,7 +20,20 @@ import {
   TrophyOutlined,
   UserOutlined,
 } from '@ant-design/icons'
-import { Avatar, Badge, Button, Drawer, Dropdown, Flex, Grid, Layout, Menu, Segmented, Space, Typography } from 'antd'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Drawer,
+  Dropdown,
+  Flex,
+  Grid,
+  Layout,
+  Menu,
+  Segmented,
+  Space,
+  Typography,
+} from 'antd'
 import type { MenuProps } from 'antd'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -42,20 +55,8 @@ function useMenuItems(): Item[] {
     label: <Link to={to}>{t(label)}</Link>,
   })
 
-  const items: Item[] = [
-    link('/', 'Головна', <HomeOutlined />),
-    link('/projects', 'Проєкти', <AppstoreOutlined />),
-    link('/results', 'Результати', <TrophyOutlined />),
-    link('/implementation', 'Хід реалізації', <BuildOutlined />),
-  ]
-  if (hasRole('resident')) {
-    items.push(link('/voting', 'Голосування', <CheckSquareOutlined />))
-    items.push(link('/my/projects', 'Мої проєкти', <FileTextOutlined />))
-  }
-  if (hasRole('moderator')) items.push(link('/moderation', 'Модерація', <AuditOutlined />))
-  if (hasRole('expert')) items.push(link('/expertise', 'Експертиза', <ExperimentOutlined />))
-  if (hasRole('operator')) items.push(link('/operator', 'Паперові бюлетені', <FileDoneOutlined />))
-  if (hasRole('executor')) items.push(link('/executor', 'Кабінет виконавця', <ToolOutlined />))
+  // спершу пункти ролей (робочі сторінки), потім публічні — щоб на вузькому екрані в «⋯» ховались публічні
+  const items: Item[] = [link('/', 'Головна', <HomeOutlined />)]
   if (hasRole('admin'))
     items.push({
       key: 'admin',
@@ -70,14 +71,39 @@ function useMenuItems(): Item[] {
         link('/admin/audit', 'Журнал аудиту', <DatabaseOutlined />),
       ],
     })
+  if (hasRole('moderator')) items.push(link('/moderation', 'Модерація', <AuditOutlined />))
+  if (hasRole('expert')) items.push(link('/expertise', 'Експертиза', <ExperimentOutlined />))
+  if (hasRole('operator')) items.push(link('/operator', 'Паперові бюлетені', <FileDoneOutlined />))
+  if (hasRole('executor')) items.push(link('/executor', 'Кабінет виконавця', <ToolOutlined />))
+  if (hasRole('resident')) {
+    items.push(link('/voting', 'Голосування', <CheckSquareOutlined />))
+    items.push(link('/my/projects', 'Мої проєкти', <FileTextOutlined />))
+  }
+  items.push(
+    link('/projects', 'Проєкти', <AppstoreOutlined />),
+    link('/results', 'Результати', <TrophyOutlined />),
+    link('/implementation', 'Хід реалізації', <BuildOutlined />),
+  )
   return items
 }
 
 function selectedKey(pathname: string): string {
   if (pathname === '/') return '/'
   const keys = [
-    '/projects', '/results', '/implementation', '/voting', '/my/projects', '/moderation', '/expertise', '/operator',
-    '/executor', '/admin/campaign', '/admin/implementation', '/admin/reports', '/admin/statistics', '/admin/users',
+    '/projects',
+    '/results',
+    '/implementation',
+    '/voting',
+    '/my/projects',
+    '/moderation',
+    '/expertise',
+    '/operator',
+    '/executor',
+    '/admin/campaign',
+    '/admin/implementation',
+    '/admin/reports',
+    '/admin/statistics',
+    '/admin/users',
     '/admin/audit',
   ]
   return keys.find((k) => pathname.startsWith(k)) ?? ''
@@ -164,7 +190,11 @@ export function AppLayout() {
           <Dropdown menu={userMenu} trigger={['click']} placement="bottomRight">
             <Button type="text" style={{ paddingInline: 6 }}>
               <Avatar size="small" style={{ background: '#1f5c99' }} icon={<UserOutlined />} />
-              {!mobile && <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.fullName}</span>}
+              {!mobile && (
+                <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {user.fullName}
+                </span>
+              )}
             </Button>
           </Dropdown>
         </>
@@ -190,7 +220,14 @@ export function AppLayout() {
           paddingInline: mobile ? 12 : 24,
         }}
       >
-        {mobile && <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawer(true)} aria-label={t('Меню')} />}
+        {mobile && (
+          <Button
+            type="text"
+            icon={<MenuOutlined />}
+            onClick={() => setDrawer(true)}
+            aria-label={t('Меню')}
+          />
+        )}
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <img src="/favicon.svg" alt="" width={30} height={30} />
           {!(mobile && !screens.sm) && (
@@ -210,8 +247,20 @@ export function AppLayout() {
         <div style={{ marginInlineStart: 'auto' }}>{right}</div>
       </Layout.Header>
 
-      <Drawer open={drawer} onClose={() => setDrawer(false)} placement="left" width={280} title={t('Громадський бюджет')}>
-        <Menu mode="inline" items={items} selectedKeys={[selected]} defaultOpenKeys={['admin']} style={{ border: 'none' }} />
+      <Drawer
+        open={drawer}
+        onClose={() => setDrawer(false)}
+        placement="left"
+        width={280}
+        title={t('Громадський бюджет')}
+      >
+        <Menu
+          mode="inline"
+          items={items}
+          selectedKeys={[selected]}
+          defaultOpenKeys={['admin']}
+          style={{ border: 'none' }}
+        />
       </Drawer>
 
       <Layout.Content style={{ padding: mobile ? '16px 12px 32px' : '28px 24px 40px' }}>
@@ -222,7 +271,9 @@ export function AppLayout() {
 
       <Layout.Footer style={{ textAlign: 'center' }}>
         <Flex justify="center" gap={16} wrap>
-          <span>{t('ІС «Громадський бюджет»')} · {t('курсова робота з ТРПЗ')}, КПІ ім. Ігоря Сікорського, 2026</span>
+          <span>
+            {t('ІС «Громадський бюджет»')} · {t('курсова робота з ТРПЗ')}, КПІ ім. Ігоря Сікорського, 2026
+          </span>
           <Link to="/open-data">{t('Відкриті дані')}</Link>
           <Link to="/help">{t('Довідка')}</Link>
           <a href="/swagger" target="_blank" rel="noreferrer">

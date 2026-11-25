@@ -78,7 +78,13 @@ function ProjectReview({ p }: { p: ProjectDetails }) {
         columns={[
           { title: t('Позиція'), dataIndex: 'name' },
           { title: t('К-сть'), render: (_, b) => `${b.quantity} ${b.unit}`, width: 90 },
-          { title: t('Сума'), dataIndex: 'amount', align: 'right', render: (v: number) => formatMoney(v), width: 130 },
+          {
+            title: t('Сума'),
+            dataIndex: 'amount',
+            align: 'right',
+            render: (v: number) => formatMoney(v),
+            width: 130,
+          },
         ]}
       />
       {p.latitude != null && p.longitude != null && (
@@ -136,7 +142,10 @@ export function ModerationPage() {
   const assign = async () => {
     if (!assignFor || !assignTo) return
     try {
-      await api(`/api/moderation/${assignFor.projectId}/assign`, { method: 'POST', body: { moderatorId: assignTo } })
+      await api(`/api/moderation/${assignFor.projectId}/assign`, {
+        method: 'POST',
+        body: { moderatorId: assignTo },
+      })
       message.success(t('Модератора призначено'))
       setAssignFor(null)
       void reload()
@@ -157,13 +166,20 @@ export function ModerationPage() {
         </>
       ),
     },
-    { title: t('Вартість'), dataIndex: 'cost', align: 'right' as const, width: 130, render: (v: number) => formatMoney(v) },
+    {
+      title: t('Вартість'),
+      dataIndex: 'cost',
+      align: 'right' as const,
+      width: 130,
+      render: (v: number) => formatMoney(v),
+    },
     { title: t('Статус'), dataIndex: 'status', width: 140, render: (s: string) => <StatusTag status={s} /> },
     {
       title: t('Модератор'),
       dataIndex: 'moderatorName',
       width: 160,
-      render: (v: string | null) => v ?? <Typography.Text type="secondary">{t('не призначено')}</Typography.Text>,
+      render: (v: string | null) =>
+        v ?? <Typography.Text type="secondary">{t('не призначено')}</Typography.Text>,
     },
     {
       title: '',
@@ -171,11 +187,21 @@ export function ModerationPage() {
       render: (_: unknown, p: ProjectListItem) => (
         <Space>
           {ready ? (
-            <Button type="primary" size="small" icon={<SendOutlined />} onClick={() => void publish(p.projectId)}>
+            <Button
+              type="primary"
+              size="small"
+              icon={<SendOutlined />}
+              onClick={() => void publish(p.projectId)}
+            >
               {t('Опублікувати')}
             </Button>
           ) : (
-            <Button type="primary" size="small" icon={<AuditOutlined />} onClick={() => setReviewId(p.projectId)}>
+            <Button
+              type="primary"
+              size="small"
+              icon={<AuditOutlined />}
+              onClick={() => setReviewId(p.projectId)}
+            >
               {t('Перевірити')}
             </Button>
           )}
@@ -207,7 +233,11 @@ export function ModerationPage() {
 
   return (
     <>
-      <PageTitle title={t('Модерація')} subtitle={t('Перевірка поданих проєктів і публікація допущених')} help="moderation" />
+      <PageTitle
+        title={t('Модерація')}
+        subtitle={t('Перевірка поданих проєктів і публікація допущених')}
+        help="moderation"
+      />
       <LoadState loading={loading} error={error}>
         {data && (
           <Card>
@@ -285,7 +315,15 @@ export function ModerationPage() {
   )
 }
 
-function ModerationDrawer({ projectId, onClose, onDone }: { projectId: number | null; onClose: () => void; onDone: () => void }) {
+function ModerationDrawer({
+  projectId,
+  onClose,
+  onDone,
+}: {
+  projectId: number | null
+  onClose: () => void
+  onDone: () => void
+}) {
   const { t } = useTranslation()
   const { message } = App.useApp()
   const [form] = Form.useForm<{ decision: string; comment?: string; duplicateOfId?: number }>()
@@ -303,7 +341,11 @@ function ModerationDrawer({ projectId, onClose, onDone }: { projectId: number | 
   )
   const candidates = useLoad(
     async () =>
-      data ? api<PagedResult<ProjectListItem>>(`/api/projects?campaignId=${data.p.campaignId}&pageSize=100&sort=title`) : null,
+      data
+        ? api<PagedResult<ProjectListItem>>(
+            `/api/projects?campaignId=${data.p.campaignId}&pageSize=100&sort=title`,
+          )
+        : null,
     [data],
   )
 
@@ -323,9 +365,14 @@ function ModerationDrawer({ projectId, onClose, onDone }: { projectId: number | 
 
   const needComment = decision === 'revise' || decision === 'reject'
   const dupOptions = [
-    ...(data?.similar ?? []).map((s) => ({ value: s.projectId, label: `${s.regNumber ?? '#' + s.projectId} ${s.title} (${t('схожий')})` })),
+    ...(data?.similar ?? []).map((s) => ({
+      value: s.projectId,
+      label: `${s.regNumber ?? '#' + s.projectId} ${s.title} (${t('схожий')})`,
+    })),
     ...(candidates.data?.items ?? [])
-      .filter((x) => x.projectId !== projectId && !(data?.similar ?? []).some((s) => s.projectId === x.projectId))
+      .filter(
+        (x) => x.projectId !== projectId && !(data?.similar ?? []).some((s) => s.projectId === x.projectId),
+      )
       .map((x) => ({ value: x.projectId, label: `${x.regNumber} ${x.title}` })),
   ]
 
@@ -351,13 +398,19 @@ function ModerationDrawer({ projectId, onClose, onDone }: { projectId: number | 
                     <Link to={`/projects/${s.projectId}`} target="_blank">
                       {s.regNumber} «{s.title}»
                     </Link>{' '}
-                    <Tag>{t('спільних слів')}: {s.commonWords}</Tag>
+                    <Tag>
+                      {t('спільних слів')}: {s.commonWords}
+                    </Tag>
                   </div>
                 ))}
               />
             )}
             <ProjectReview p={data.p} />
-            <Card size="small" title={t('Рішення модератора')} style={{ marginTop: 16, background: '#f7f9fc' }}>
+            <Card
+              size="small"
+              title={t('Рішення модератора')}
+              style={{ marginTop: 16, background: '#f7f9fc' }}
+            >
               <Form form={form} layout="vertical" onFinish={submit} initialValues={{ decision: 'approve' }}>
                 <Form.Item name="decision">
                   <Radio.Group>
@@ -382,7 +435,11 @@ function ModerationDrawer({ projectId, onClose, onDone }: { projectId: number | 
                 <Form.Item
                   name="comment"
                   label={needComment ? t('Коментар (обов’язково)') : t('Коментар')}
-                  rules={needComment ? [{ required: true, message: t('Для цього рішення коментар обов’язковий.') }] : []}
+                  rules={
+                    needComment
+                      ? [{ required: true, message: t('Для цього рішення коментар обов’язковий.') }]
+                      : []
+                  }
                 >
                   <Input.TextArea rows={3} />
                 </Form.Item>
@@ -405,7 +462,10 @@ export function ExpertisePage() {
   const { message } = App.useApp()
   const { data, loading, error, reload } = useLoad(() => api<ProjectListItem[]>('/api/expertise'), [])
   const [selected, setSelected] = useState<number | null>(null)
-  const details = useLoad(() => (selected ? api<ProjectDetails>(`/api/projects/${selected}`) : Promise.resolve(null)), [selected])
+  const details = useLoad(
+    () => (selected ? api<ProjectDetails>(`/api/projects/${selected}`) : Promise.resolve(null)),
+    [selected],
+  )
   const [form] = Form.useForm<{ reviewType: string; decision: string; comment?: string }>()
   const decision = Form.useWatch('decision', form)
   const [busy, setBusy] = useState(false)
@@ -427,7 +487,11 @@ export function ExpertisePage() {
 
   return (
     <>
-      <PageTitle title={t('Експертиза')} subtitle={t('Проєкти, передані на технічну, юридичну чи фінансову експертизу')} help="expertise" />
+      <PageTitle
+        title={t('Експертиза')}
+        subtitle={t('Проєкти, передані на технічну, юридичну чи фінансову експертизу')}
+        help="expertise"
+      />
       <Card>
         <LoadState loading={loading} error={error}>
           <Table
@@ -448,7 +512,13 @@ export function ExpertisePage() {
                   </>
                 ),
               },
-              { title: t('Вартість'), dataIndex: 'cost', align: 'right', width: 130, render: (v: number) => formatMoney(v) },
+              {
+                title: t('Вартість'),
+                dataIndex: 'cost',
+                align: 'right',
+                width: 130,
+                render: (v: number) => formatMoney(v),
+              },
               { title: t('Коментар модератора'), dataIndex: 'lastComment', width: 220 },
               {
                 title: '',
@@ -475,8 +545,17 @@ export function ExpertisePage() {
           {details.data && (
             <>
               <ProjectReview p={details.data} />
-              <Card size="small" title={t('Висновок експерта')} style={{ marginTop: 16, background: '#f7f9fc' }}>
-                <Form form={form} layout="vertical" onFinish={submit} initialValues={{ reviewType: 'technical', decision: 'approve' }}>
+              <Card
+                size="small"
+                title={t('Висновок експерта')}
+                style={{ marginTop: 16, background: '#f7f9fc' }}
+              >
+                <Form
+                  form={form}
+                  layout="vertical"
+                  onFinish={submit}
+                  initialValues={{ reviewType: 'technical', decision: 'approve' }}
+                >
                   <Form.Item name="reviewType" label={t('Вид експертизи')}>
                     <Radio.Group
                       optionType="button"
@@ -499,7 +578,11 @@ export function ExpertisePage() {
                   <Form.Item
                     name="comment"
                     label={t('Обґрунтування')}
-                    rules={decision !== 'approve' ? [{ required: true, message: t('Для цього висновку коментар обов’язковий.') }] : []}
+                    rules={
+                      decision !== 'approve'
+                        ? [{ required: true, message: t('Для цього висновку коментар обов’язковий.') }]
+                        : []
+                    }
                   >
                     <Input.TextArea rows={3} />
                   </Form.Item>
@@ -551,9 +634,14 @@ export function NotificationsPage() {
             dataSource={data ?? []}
             locale={{ emptyText: <Empty description={t('Сповіщень немає')} /> }}
             renderItem={(n) => (
-              <List.Item style={{ cursor: 'pointer', background: n.isRead ? undefined : '#f0f6ff', paddingInline: 12 }} onClick={() => void open(n)}>
+              <List.Item
+                style={{ cursor: 'pointer', background: n.isRead ? undefined : '#f0f6ff', paddingInline: 12 }}
+                onClick={() => void open(n)}
+              >
                 <List.Item.Meta
-                  avatar={<NotificationOutlined style={{ fontSize: 18, color: n.isRead ? '#bfbfbf' : '#1f5c99' }} />}
+                  avatar={
+                    <NotificationOutlined style={{ fontSize: 18, color: n.isRead ? '#bfbfbf' : '#1f5c99' }} />
+                  }
                   title={<span style={{ fontWeight: n.isRead ? 400 : 600 }}>{n.body}</span>}
                   description={formatDateTime(n.createdAt)}
                 />

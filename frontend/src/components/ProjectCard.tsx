@@ -15,7 +15,14 @@ export function ProjectCard({ p, maxVotes }: { p: ProjectListItem; maxVotes: num
         hoverable
         style={{ height: '100%', overflow: 'hidden' }}
         styles={{ body: { padding: 16 } }}
-        cover={<ProjectCover photoId={p.photoId} categoryId={p.categoryId} categoryName={t(p.categoryName)} height={150} />}
+        cover={
+          <ProjectCover
+            photoId={p.photoId}
+            categoryId={p.categoryId}
+            categoryName={t(p.categoryName)}
+            height={150}
+          />
+        }
       >
         <Flex justify="space-between" align="center" gap={8} style={{ marginBottom: 6 }}>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -26,7 +33,11 @@ export function ProjectCard({ p, maxVotes }: { p: ProjectListItem; maxVotes: num
         <Typography.Title level={5} style={{ margin: '0 0 6px', minHeight: 44 }} ellipsis={{ rows: 2 }}>
           {p.title}
         </Typography.Title>
-        <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ minHeight: 44, marginBottom: 8 }}>
+        <Typography.Paragraph
+          type="secondary"
+          ellipsis={{ rows: 2 }}
+          style={{ minHeight: 44, marginBottom: 8 }}
+        >
           {p.summary}
         </Typography.Paragraph>
         <Flex justify="space-between" style={{ fontSize: 13 }}>

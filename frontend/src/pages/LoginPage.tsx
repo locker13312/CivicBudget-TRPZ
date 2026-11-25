@@ -24,6 +24,7 @@ const demoAccounts = [
 ]
 
 /** Куди перейти після входу — головна сторінка ролі. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function homeFor(user: UserInfo): string {
   const r = user.roles
   if (r.includes('admin')) return '/admin/campaign'
@@ -44,7 +45,9 @@ export function LoginPage() {
   const [form] = Form.useForm<{ email: string; password: string }>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [challenge, setChallenge] = useState<{ id: string; message: string; devHint: string | null } | null>(null)
+  const [challenge, setChallenge] = useState<{ id: string; message: string; devHint: string | null } | null>(
+    null,
+  )
   const [code, setCode] = useState('')
   const [bankOpen, setBankOpen] = useState(false)
   const [bankUsers, setBankUsers] = useState<UserRow[] | null>(null)
@@ -105,7 +108,11 @@ export function LoginPage() {
         <Card>
           {!challenge ? (
             <>
-              <PageTitle title={t('Вхід')} subtitle={t('Увійдіть, щоб подавати проєкти й голосувати')} help="login" />
+              <PageTitle
+                title={t('Вхід')}
+                subtitle={t('Увійдіть, щоб подавати проєкти й голосувати')}
+                help="login"
+              />
               {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
               <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
                 <Form.Item
@@ -116,7 +123,11 @@ export function LoginPage() {
                 >
                   <Input prefix={<MailOutlined />} autoComplete="username" size="large" />
                 </Form.Item>
-                <Form.Item name="password" label={t('Пароль')} rules={[{ required: true, message: t('Вкажіть пароль.') }]}>
+                <Form.Item
+                  name="password"
+                  label={t('Пароль')}
+                  rules={[{ required: true, message: t('Вкажіть пароль.') }]}
+                >
                   <Input.Password prefix={<LockOutlined />} autoComplete="current-password" size="large" />
                 </Form.Item>
                 <Button type="primary" htmlType="submit" block size="large" loading={busy}>
@@ -134,7 +145,13 @@ export function LoginPage() {
           ) : (
             <>
               <PageTitle title={t('Підтвердження входу')} help="login" />
-              <Alert type="info" showIcon icon={<SafetyOutlined />} message={t(challenge.message)} style={{ marginBottom: 12 }} />
+              <Alert
+                type="info"
+                showIcon
+                icon={<SafetyOutlined />}
+                message={t(challenge.message)}
+                style={{ marginBottom: 12 }}
+              />
               {challenge.devHint && (
                 <Alert
                   type="warning"
@@ -164,7 +181,14 @@ export function LoginPage() {
                 size="large"
                 autoFocus
               />
-              <Button type="primary" block size="large" style={{ marginTop: 20 }} loading={busy} onClick={() => void confirm()}>
+              <Button
+                type="primary"
+                block
+                size="large"
+                style={{ marginTop: 20 }}
+                loading={busy}
+                onClick={() => void confirm()}
+              >
                 {t('Підтвердити')}
               </Button>
               <Button type="link" block onClick={() => setChallenge(null)}>
@@ -178,7 +202,8 @@ export function LoginPage() {
       <Col xs={24} md={10} lg={8}>
         <Card title={t('Демо-облікові записи')} size="small">
           <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
-            {t('Пароль для всіх')}: <Typography.Text code>{DEMO_PASSWORD}</Typography.Text>. {t('Клік — підставити логін.')}
+            {t('Пароль для всіх')}: <Typography.Text code>{DEMO_PASSWORD}</Typography.Text>.{' '}
+            {t('Клік — підставити логін.')}
           </Typography.Paragraph>
           <List
             size="small"
@@ -202,11 +227,18 @@ export function LoginPage() {
         </Card>
       </Col>
 
-      <Modal open={bankOpen} onCancel={() => setBankOpen(false)} footer={null} title={t('BankID (демо): оберіть особу')}>
+      <Modal
+        open={bankOpen}
+        onCancel={() => setBankOpen(false)}
+        footer={null}
+        title={t('BankID (демо): оберіть особу')}
+      >
         <Alert
           type="info"
           showIcon
-          message={t('Імітація: справжньої інтеграції з банком у курсовій немає. Оберіть, від чийого імені «увійти через банк».')}
+          message={t(
+            'Імітація: справжньої інтеграції з банком у курсовій немає. Оберіть, від чийого імені «увійти через банк».',
+          )}
           style={{ marginBottom: 12 }}
         />
         <List
@@ -221,7 +253,10 @@ export function LoginPage() {
                 </Button>,
               ]}
             >
-              <List.Item.Meta title={u.fullName} description={u.roles.map((r) => t(roleNames[r] ?? r)).join(', ')} />
+              <List.Item.Meta
+                title={u.fullName}
+                description={u.roles.map((r) => t(roleNames[r] ?? r)).join(', ')}
+              />
             </List.Item>
           )}
         />

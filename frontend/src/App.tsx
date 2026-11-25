@@ -6,7 +6,20 @@ import { AuthProvider } from './auth/AuthContext'
 import { RequireRole } from './auth/RequireRole'
 import { AppLayout } from './components/AppLayout'
 import { HelpProvider } from './components/help'
-import { AdminAuditPage, AdminCampaignPage, AdminStatisticsPage, AdminUsersPage } from './pages/AdminPages'
+import {
+  AdminAuditPage,
+  AdminCampaignPage,
+  AdminReportsPage,
+  AdminStatisticsPage,
+  AdminUsersPage,
+} from './pages/AdminPages'
+import {
+  AdminImplementationPage,
+  ExecutorPage,
+  ImplementationListPage,
+  ImplementationPage,
+} from './pages/ImplementationPages'
+import { HelpPage, OpenDataPage } from './pages/InfoPages'
 import { CatalogPage } from './pages/CatalogPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -18,9 +31,6 @@ import { RegisterPage } from './pages/RegisterPage'
 import { ResultsPage } from './pages/ResultsPage'
 import { ExpertisePage, ModerationPage, NotificationsPage } from './pages/StaffPages'
 import { VotingPage } from './pages/VotingPage'
-
-/** Сторінки, ще не переписані на Ant Design, показуються зі старими стилями MVP. */
-const Legacy = ({ children }: { children: ReactNode }) => <div className="legacy">{children}</div>
 
 function NotFound() {
   const { t } = useTranslation()
@@ -54,6 +64,10 @@ export default function App() {
               <Route path="results" element={<ResultsPage />} />
               <Route path="login" element={<LoginPage />} />
               <Route path="register" element={<RegisterPage />} />
+              <Route path="implementation" element={<ImplementationListPage />} />
+              <Route path="implementation/:id" element={<ImplementationPage />} />
+              <Route path="open-data" element={<OpenDataPage />} />
+              <Route path="help" element={<HelpPage />} />
 
               {/* будь-який користувач після входу */}
               <Route path="notifications" element={guard(<NotificationsPage />)} />
@@ -67,12 +81,15 @@ export default function App() {
               <Route path="moderation" element={guard(<ModerationPage />, ['moderator'])} />
               <Route path="expertise" element={guard(<ExpertisePage />, ['expert'])} />
               <Route path="operator" element={guard(<OperatorPage />, ['operator'])} />
+              <Route path="executor" element={guard(<ExecutorPage />, ['executor'])} />
 
               {/* адміністратор */}
-              <Route path="admin/campaign" element={guard(<Legacy><AdminCampaignPage /></Legacy>, ['admin'])} />
-              <Route path="admin/users" element={guard(<Legacy><AdminUsersPage /></Legacy>, ['admin'])} />
-              <Route path="admin/audit" element={guard(<Legacy><AdminAuditPage /></Legacy>, ['admin'])} />
-              <Route path="admin/statistics" element={guard(<Legacy><AdminStatisticsPage /></Legacy>, ['admin'])} />
+              <Route path="admin/campaign" element={guard(<AdminCampaignPage />, ['admin'])} />
+              <Route path="admin/implementation" element={guard(<AdminImplementationPage />, ['admin'])} />
+              <Route path="admin/reports" element={guard(<AdminReportsPage />, ['admin'])} />
+              <Route path="admin/users" element={guard(<AdminUsersPage />, ['admin'])} />
+              <Route path="admin/audit" element={guard(<AdminAuditPage />, ['admin'])} />
+              <Route path="admin/statistics" element={guard(<AdminStatisticsPage />, ['admin'])} />
 
               <Route path="*" element={<NotFound />} />
             </Route>

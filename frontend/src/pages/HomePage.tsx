@@ -11,10 +11,26 @@ import { ProjectCard } from '../components/ProjectCard'
 /** Етапи кампанії зі строками — для шкали на головній. */
 function stages(c: Campaign) {
   return [
-    { key: 'submission', title: 'Подання проєктів', period: `${formatDate(c.submissionStart)} — ${formatDate(c.submissionEnd)}` },
-    { key: 'review', title: 'Розгляд проєктів', period: `${formatDate(c.submissionEnd)} — ${formatDate(c.reviewEnd)}` },
-    { key: 'voting', title: 'Голосування', period: `${formatDate(c.votingStart)} — ${formatDate(c.votingEnd)}` },
-    { key: 'counting', title: 'Підрахунок голосів', period: `${formatDate(c.votingEnd)} — ${formatDate(c.resultsDate)}` },
+    {
+      key: 'submission',
+      title: 'Подання проєктів',
+      period: `${formatDate(c.submissionStart)} — ${formatDate(c.submissionEnd)}`,
+    },
+    {
+      key: 'review',
+      title: 'Розгляд проєктів',
+      period: `${formatDate(c.submissionEnd)} — ${formatDate(c.reviewEnd)}`,
+    },
+    {
+      key: 'voting',
+      title: 'Голосування',
+      period: `${formatDate(c.votingStart)} — ${formatDate(c.votingEnd)}`,
+    },
+    {
+      key: 'counting',
+      title: 'Підрахунок голосів',
+      period: `${formatDate(c.votingEnd)} — ${formatDate(c.resultsDate)}`,
+    },
     { key: 'implementation', title: 'Реалізація', period: `${formatDate(c.resultsDate)} →` },
   ]
 }
@@ -40,13 +56,20 @@ function Home({ campaign: c, top }: { campaign: Campaign; top: PagedResult<Proje
   const navigate = useNavigate()
   const idx = campaignStatusOrder.indexOf(c.status)
   const list = stages(c)
-  const current = Math.max(0, list.findIndex((s) => campaignStatusOrder.indexOf(s.key) >= idx))
+  const current = Math.max(
+    0,
+    list.findIndex((s) => campaignStatusOrder.indexOf(s.key) >= idx),
+  )
   const maxVotes = Math.max(1, ...top.items.map((p) => p.totalVotes))
 
   return (
     <>
       <Card
-        style={{ marginBottom: 24, background: 'linear-gradient(120deg, #1f5c99 0%, #2f78c2 60%, #4a90d9 100%)', border: 'none' }}
+        style={{
+          marginBottom: 24,
+          background: 'linear-gradient(120deg, #1f5c99 0%, #2f78c2 60%, #4a90d9 100%)',
+          border: 'none',
+        }}
         styles={{ body: { padding: 28 } }}
       >
         <Flex justify="space-between" wrap gap={16} align="center">
@@ -56,7 +79,9 @@ function Home({ campaign: c, top }: { campaign: Campaign; top: PagedResult<Proje
             </Space>
             <Typography.Title style={{ color: '#fff', margin: 0 }}>{c.name}</Typography.Title>
             <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.9)', fontSize: 16, margin: '8px 0 0' }}>
-              {t('Мешканці пропонують проєкти для свого міста й голосують за найкращі. Переможці реалізуються коштом міського бюджету.')}
+              {t(
+                'Мешканці пропонують проєкти для свого міста й голосують за найкращі. Переможці реалізуються коштом міського бюджету.',
+              )}
             </Typography.Paragraph>
           </div>
           <Space wrap>
@@ -89,17 +114,30 @@ function Home({ campaign: c, top }: { campaign: Campaign; top: PagedResult<Proje
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} md={6}>
           <Card>
-            <Statistic title={t('Бюджет кампанії')} value={c.totalBudget} suffix={t('грн')} groupSeparator=" " />
+            <Statistic
+              title={t('Бюджет кампанії')}
+              value={c.totalBudget}
+              suffix={t('грн')}
+              groupSeparator=" "
+            />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card>
-            <Statistic title={t('Вартість проєкту')} value={`${(c.minProjectCost / 1000).toFixed(0)}–${(c.maxProjectCost / 1000).toFixed(0)}`} suffix={t('тис. грн')} />
+            <Statistic
+              title={t('Вартість проєкту')}
+              value={`${(c.minProjectCost / 1000).toFixed(0)}–${(c.maxProjectCost / 1000).toFixed(0)}`}
+              suffix={t('тис. грн')}
+            />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card>
-            <Statistic title={t('Голосів у мешканця')} value={c.votesPerVoter} suffix={`/ ${t('до')} ${c.maxVotesPerProject} ${t('за проєкт')}`} />
+            <Statistic
+              title={t('Голосів у мешканця')}
+              value={c.votesPerVoter}
+              suffix={`/ ${t('до')} ${c.maxVotesPerProject} ${t('за проєкт')}`}
+            />
           </Card>
         </Col>
         <Col xs={12} md={6}>
@@ -119,7 +157,12 @@ function Home({ campaign: c, top }: { campaign: Campaign; top: PagedResult<Proje
               dataSource={c.categories}
               columns={[
                 { title: t('Категорія'), dataIndex: 'categoryName', render: (v: string) => t(v) },
-                { title: t('Ліміт'), dataIndex: 'budgetLimit', align: 'right', render: (v: number) => formatMoney(v) },
+                {
+                  title: t('Ліміт'),
+                  dataIndex: 'budgetLimit',
+                  align: 'right',
+                  render: (v: number) => formatMoney(v),
+                },
               ]}
             />
           </Card>

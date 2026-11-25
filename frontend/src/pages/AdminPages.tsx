@@ -1,5 +1,59 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import {
+  CrownOutlined,
+  LockOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  SafetyOutlined,
+  SaveOutlined,
+  TeamOutlined,
+  TrophyFilled,
+  UnlockOutlined,
+} from '@ant-design/icons'
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Checkbox,
+  Col,
+  DatePicker,
+  Descriptions,
+  Divider,
+  Dropdown,
+  Empty,
+  Flex,
+  Form,
+  Input,
+  InputNumber,
+  List,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Steps,
+  Switch,
+  Table,
+  Tag,
+  Typography,
+} from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { api, query } from '../api/client'
 import {
   auditActions,
@@ -13,748 +67,1172 @@ import {
   roleNames,
   verificationNames,
 } from '../api/labels'
-import type { AuditRow, Campaign, PagedResult, Statistics, UserRow, WinnerRow } from '../api/types'
-import {
-  Alert,
-  CampaignBadge,
-  Empty,
-  Field,
-  Loading,
-  PageHeader,
-  Pager,
-  useApi,
-  useReferences,
-} from '../components/ui'
-import type { MessageResponse } from './shared'
+import type {
+  AuditRow,
+  Campaign,
+  PagedResult,
+  References,
+  Statistics,
+  UserRow,
+  WinnerRow,
+} from '../api/types'
+import { CampaignTag, ExportButton, LoadState, PageTitle, useLoad } from '../components/common'
 
-type Msg = { kind: 'error' | 'success'; text: string } | null
+/** Вибір кампанії для адмін-сторінок (за замовчуванням — поточна). */
+function useCampaigns() {
+  const list = useLoad(async () => {
+    const all = await api<Campaign[]>('/api/campaigns')
+    const current = await api<Campaign>('/api/campaigns/current').catch(() => null)
+    return { all, current }
+  }, [])
+  const [id, setId] = useState<number | undefined>()
+  const selected = id ?? list.data?.current?.campaignId ?? list.data?.all[0]?.campaignId
+  return { list, selected, setId }
+}
 
-// ======================================================================
-// Кампанія: параметри, ліміти категорій, етапи, визначення переможців
-// ======================================================================
+function CampaignSelect({
+  campaigns,
+  value,
+  onChange,
+}: {
+  campaigns: Campaign[]
+  value?: number
+  onChange: (v: number) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <Select
+      style={{ minWidth: 230 }}
+      value={value}
+      onChange={onChange}
+      options={campaigns.map((c) => ({
+        value: c.campaignId,
+        label: `${c.name} · ${t(campaignStatus[c.status])}`,
+      }))}
+      aria-label={t('Кампанія')}
+    />
+  )
+}
 
-type CampaignForm = Omit<Campaign, 'campaignId' | 'status' | 'categories'> & {
-  categories: { categoryId: number; enabled: boolean; budgetLimit: number }[]
+// ======================= Кампанія =======================
+
+interface CampaignForm {
+  campaignYear: number
+  name: string
+  totalBudget: number
+  minProjectCost: number
+  maxProjectCost: number
+  votesPerVoter: number
+  maxVotesPerProject: number
+  maxProjectsPerAuthor: number
+  minVoterAge: number
+  submission: [Dayjs, Dayjs]
+  reviewEnd: Dayjs
+  voting: [Dayjs, Dayjs]
+  resultsDate: Dayjs
+  showInterimResults: boolean
+  limits: Record<string, number | null>
+}
+
+const toForm = (c: Campaign): CampaignForm => ({
+  campaignYear: c.campaignYear,
+  name: c.name,
+  totalBudget: c.totalBudget,
+  minProjectCost: c.minProjectCost,
+  maxProjectCost: c.maxProjectCost,
+  votesPerVoter: c.votesPerVoter,
+  maxVotesPerProject: c.maxVotesPerProject,
+  maxProjectsPerAuthor: c.maxProjectsPerAuthor,
+  minVoterAge: c.minVoterAge,
+  submission: [dayjs(c.submissionStart), dayjs(c.submissionEnd)],
+  reviewEnd: dayjs(c.reviewEnd),
+  voting: [dayjs(c.votingStart), dayjs(c.votingEnd)],
+  resultsDate: dayjs(c.resultsDate),
+  showInterimResults: c.showInterimResults,
+  limits: Object.fromEntries(c.categories.map((x) => [String(x.categoryId), x.budgetLimit])),
+})
+
+const fromForm = (v: CampaignForm) => {
+  const d = (x: Dayjs) => x.format('YYYY-MM-DD')
+  return {
+    campaignYear: v.campaignYear,
+    name: v.name,
+    totalBudget: v.totalBudget,
+    minProjectCost: v.minProjectCost,
+    maxProjectCost: v.maxProjectCost,
+    votesPerVoter: v.votesPerVoter,
+    maxVotesPerProject: v.maxVotesPerProject,
+    maxProjectsPerAuthor: v.maxProjectsPerAuthor,
+    minVoterAge: v.minVoterAge,
+    submissionStart: d(v.submission[0]),
+    submissionEnd: d(v.submission[1]),
+    reviewEnd: d(v.reviewEnd),
+    votingStart: d(v.voting[0]),
+    votingEnd: d(v.voting[1]),
+    resultsDate: d(v.resultsDate),
+    showInterimResults: v.showInterimResults,
+    categories: Object.entries(v.limits ?? {})
+      .filter(([, l]) => l != null && l > 0)
+      .map(([id, l]) => ({ categoryId: Number(id), budgetLimit: l })),
+  }
 }
 
 export function AdminCampaignPage() {
-  const refs = useReferences()
-  const campaigns = useApi<Campaign[]>('/api/campaigns')
-  const [selected, setSelected] = useState<number>(0)
-  const campaign = campaigns.data?.find((c) => c.campaignId === selected) ?? campaigns.data?.[0]
-  const [form, setForm] = useState<CampaignForm | null>(null)
-  const [msg, setMsg] = useState<Msg>(null)
-  const [winners, setWinners] = useState<WinnerRow[] | null>(null)
-  const [busy, setBusy] = useState(false)
+  const { t } = useTranslation()
+  const { message, modal } = App.useApp()
+  const { list, selected, setId } = useCampaigns()
+  const refs = useLoad(() => api<References>('/api/reference'), [])
+  const campaign = useLoad(
+    () => (selected ? api<Campaign>(`/api/campaigns/${selected}`) : Promise.resolve(null)),
+    [selected],
+  )
+  const [form] = Form.useForm<CampaignForm>()
+  const [saving, setSaving] = useState(false)
+  const [rating, setRating] = useState<WinnerRow[] | null>(null)
+  const [selecting, setSelecting] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const c = campaign.data
 
   useEffect(() => {
-    if (!campaign || !refs) return
-    const { categories, ...rest } = campaign
-    setForm({
-      ...rest,
-      categories: refs.categories.map((c) => {
-        const cc = categories.find((x) => x.categoryId === c.id)
-        return { categoryId: c.id, enabled: !!cc, budgetLimit: cc?.budgetLimit ?? 0 }
-      }),
-    })
-  }, [campaign, refs])
+    if (c) form.setFieldsValue(toForm(c))
+  }, [c, form])
 
-  if (campaigns.loading || !form || !campaign) return <Loading />
+  // рейтинг скидаємо лише при виборі іншої кампанії (не після перезавантаження поточної)
+  useEffect(() => setRating(null), [selected])
 
-  const set = <K extends keyof CampaignForm>(k: K, v: CampaignForm[K]) =>
-    setForm((f) => (f ? { ...f, [k]: v } : f))
-  const num = (k: keyof CampaignForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    set(k, Number(e.target.value) as never)
-  const date = (k: keyof CampaignForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    set(k, e.target.value as never)
-
-  async function run(action: () => Promise<string>) {
-    setBusy(true)
-    setMsg(null)
+  const save = async () => {
+    const v = await form.validateFields().catch(() => null)
+    if (!v || !c) return
+    setSaving(true)
     try {
-      setMsg({ kind: 'success', text: await action() })
-      await campaigns.reload()
+      await api(`/api/admin/campaigns/${c.campaignId}`, { method: 'PUT', body: fromForm(v) })
+      message.success(t('Параметри кампанії збережено'))
+      void campaign.reload()
+      void list.reload()
     } catch (e) {
-      setMsg({ kind: 'error', text: (e as Error).message })
+      message.error((e as Error).message, 6)
     } finally {
-      setBusy(false)
+      setSaving(false)
     }
-  }
-
-  const save = (e: FormEvent) => {
-    e.preventDefault()
-    run(async () => {
-      const body = {
-        ...form,
-        categories: form.categories
-          .filter((c) => c.enabled)
-          .map((c) => ({ categoryId: c.categoryId, budgetLimit: c.budgetLimit })),
-      }
-      return (
-        await api<MessageResponse>(`/api/admin/campaigns/${campaign.campaignId}`, { method: 'PUT', body })
-      ).message
-    })
   }
 
   const setStatus = (status: string) =>
-    run(async () => {
-      setWinners(null)
-      return (
-        await api<MessageResponse>(`/api/admin/campaigns/${campaign.campaignId}/status`, {
-          method: 'POST',
-          body: { status },
-        })
-      ).message
+    modal.confirm({
+      title: t('Перемкнути етап кампанії?'),
+      content: `${t(campaignStatus[c!.status])} → ${t(campaignStatus[status])}`,
+      okText: t('Перемкнути'),
+      cancelText: t('Скасувати'),
+      onOk: async () => {
+        try {
+          await api(`/api/admin/campaigns/${c!.campaignId}/status`, { method: 'POST', body: { status } })
+          message.success(t('Етап кампанії змінено'))
+          void campaign.reload()
+          void list.reload()
+        } catch (e) {
+          message.error((e as Error).message)
+        }
+      },
     })
 
-  // «Визначити переможців» → usp_SelectWinners (ADO.NET) → таблиця рейтингу
-  const selectWinners = () =>
-    run(async () => {
-      const rows = await api<WinnerRow[]>(`/api/admin/campaigns/${campaign.campaignId}/select-winners`, {
+  // «Визначити переможців» — збережена процедура usp_SelectWinners (ADO.NET, SqlDataReader)
+  const selectWinners = async () => {
+    setSelecting(true)
+    try {
+      setRating(
+        await api<WinnerRow[]>(`/api/admin/campaigns/${c!.campaignId}/select-winners`, { method: 'POST' }),
+      )
+      message.success(t('Переможців визначено'))
+      void campaign.reload()
+      void list.reload()
+    } catch (e) {
+      message.error((e as Error).message, 6)
+    } finally {
+      setSelecting(false)
+    }
+  }
+
+  const create = async () => {
+    const v = await form.validateFields().catch(() => null)
+    if (!v) return
+    try {
+      const r = await api<{ campaignId: number }>('/api/admin/campaigns', {
         method: 'POST',
+        body: fromForm(v),
       })
-      setWinners(rows)
-      return `Переможців визначено: ${rows.filter((r) => r.isWinner).length} з ${rows.length} проєктів. Кампанія перейшла на етап «Реалізація».`
-    })
-
-  const idx = campaignStatusOrder.indexOf(campaign.status)
-
-  return (
-    <>
-      <PageHeader
-        title="Керування кампанією"
-        subtitle={
-          <>
-            {campaign.name} · <CampaignBadge status={campaign.status} />
-          </>
-        }
-        actions={
-          <Field label="Кампанія">
-            <select value={campaign.campaignId} onChange={(e) => setSelected(Number(e.target.value))}>
-              {campaigns.data?.map((c) => (
-                <option key={c.campaignId} value={c.campaignId}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        }
-      />
-      {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
-
-      <section className="card">
-        <h2>Етап кампанії</h2>
-        <div className="stage-switch">
-          {campaignStatusOrder.map((s, i) => (
-            <button
-              key={s}
-              className={`stage-btn ${s === campaign.status ? 'current' : i < idx ? 'past' : ''}`}
-              disabled={busy || s === campaign.status}
-              onClick={() => setStatus(s)}
-            >
-              <span>{i + 1}</span>
-              {campaignStatus[s]}
-            </button>
-          ))}
-        </div>
-        <div className="winners-bar">
-          <p className="muted small">
-            Переможців визначає процедура <code>usp_SelectWinners</code>: у кожній категорії за кількістю
-            голосів, поки проєкт вміщується в залишок ліміту. Доступно лише на етапі «Підрахунок голосів».
-          </p>
-          <button className="btn btn-accent" disabled={busy} onClick={selectWinners}>
-            🏆 Визначити переможців
-          </button>
-        </div>
-      </section>
-
-      {winners && (
-        <section className="card">
-          <h2>Рейтинг і переможці</h2>
-          {winners.length === 0 ? (
-            <Empty>Немає опублікованих проєктів для відбору.</Empty>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Категорія (ліміт)</th>
-                  <th>Місце</th>
-                  <th>Проєкт</th>
-                  <th className="num">Голоси</th>
-                  <th className="num">Вартість</th>
-                  <th>Результат</th>
-                </tr>
-              </thead>
-              <tbody>
-                {winners.map((w) => (
-                  <tr key={w.projectId} className={w.isWinner ? 'row-win' : ''}>
-                    <td>
-                      {w.categoryName}
-                      <small className="block muted">{formatMoney(w.categoryLimit)}</small>
-                    </td>
-                    <td>{w.place}</td>
-                    <td>
-                      <Link to={`/projects/${w.projectId}`}>{w.title}</Link>
-                      <small className="block muted">{w.regNumber}</small>
-                    </td>
-                    <td className="num">{w.votes}</td>
-                    <td className="num">{formatMoney(w.cost)}</td>
-                    <td>
-                      {w.isWinner ? (
-                        <span className="badge st-winner">🏆 Переможець</span>
-                      ) : (
-                        <span className="badge st-not_selected">Не вмістився в ліміт / мало голосів</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-      )}
-
-      <form className="card form" onSubmit={save}>
-        <fieldset disabled={busy}>
-          <h2>Параметри кампанії</h2>
-          <div className="grid-3">
-            <Field label="Назва">
-              <input value={form.name} onChange={(e) => set('name', e.target.value)} />
-            </Field>
-            <Field label="Рік">
-              <input type="number" value={form.campaignYear} onChange={num('campaignYear')} />
-            </Field>
-            <Field label="Загальний бюджет, грн">
-              <input type="number" value={form.totalBudget} onChange={num('totalBudget')} />
-            </Field>
-            <Field label="Мін. вартість проєкту, грн">
-              <input type="number" value={form.minProjectCost} onChange={num('minProjectCost')} />
-            </Field>
-            <Field label="Макс. вартість проєкту, грн">
-              <input type="number" value={form.maxProjectCost} onChange={num('maxProjectCost')} />
-            </Field>
-            <Field label="Проєктів на автора">
-              <input type="number" value={form.maxProjectsPerAuthor} onChange={num('maxProjectsPerAuthor')} />
-            </Field>
-            <Field label="Голосів у виборця">
-              <input type="number" value={form.votesPerVoter} onChange={num('votesPerVoter')} />
-            </Field>
-            <Field label="Голосів за один проєкт">
-              <input type="number" value={form.maxVotesPerProject} onChange={num('maxVotesPerProject')} />
-            </Field>
-            <Field label="Мінімальний вік виборця">
-              <input type="number" value={form.minVoterAge} onChange={num('minVoterAge')} />
-            </Field>
-          </div>
-
-          <h2>Дати етапів</h2>
-          <div className="grid-3">
-            <Field label="Початок подання">
-              <input type="date" value={form.submissionStart} onChange={date('submissionStart')} />
-            </Field>
-            <Field label="Кінець подання">
-              <input type="date" value={form.submissionEnd} onChange={date('submissionEnd')} />
-            </Field>
-            <Field label="Кінець розгляду">
-              <input type="date" value={form.reviewEnd} onChange={date('reviewEnd')} />
-            </Field>
-            <Field label="Початок голосування">
-              <input type="date" value={form.votingStart} onChange={date('votingStart')} />
-            </Field>
-            <Field label="Кінець голосування">
-              <input type="date" value={form.votingEnd} onChange={date('votingEnd')} />
-            </Field>
-            <Field label="Оголошення результатів">
-              <input type="date" value={form.resultsDate} onChange={date('resultsDate')} />
-            </Field>
-          </div>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={form.showInterimResults}
-              onChange={(e) => set('showInterimResults', e.target.checked)}
-            />
-            Показувати проміжні результати під час голосування
-          </label>
-
-          <h2>Ліміти категорій</h2>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Відкрита</th>
-                <th>Категорія</th>
-                <th style={{ width: 220 }}>Ліміт, грн</th>
-              </tr>
-            </thead>
-            <tbody>
-              {form.categories.map((c, i) => (
-                <tr key={c.categoryId}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={c.enabled}
-                      onChange={(e) =>
-                        set(
-                          'categories',
-                          form.categories.map((x, j) => (j === i ? { ...x, enabled: e.target.checked } : x)),
-                        )
-                      }
-                    />
-                  </td>
-                  <td>{refs?.categories.find((r) => r.id === c.categoryId)?.name}</td>
-                  <td>
-                    <input
-                      type="number"
-                      disabled={!c.enabled}
-                      value={c.budgetLimit}
-                      onChange={(e) =>
-                        set(
-                          'categories',
-                          form.categories.map((x, j) =>
-                            j === i ? { ...x, budgetLimit: Number(e.target.value) } : x,
-                          ),
-                        )
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={2}>Сума лімітів</td>
-                <td>
-                  <b>
-                    {formatMoney(
-                      form.categories.filter((c) => c.enabled).reduce((s, c) => s + c.budgetLimit, 0),
-                    )}
-                  </b>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-          <div className="form-actions">
-            <button className="btn btn-primary">Зберегти параметри</button>
-          </div>
-        </fieldset>
-      </form>
-    </>
-  )
-}
-
-// ======================================================================
-// Користувачі й ролі
-// ======================================================================
-
-export function AdminUsersPage() {
-  const refs = useReferences()
-  const [search, setSearch] = useState('')
-  const [applied, setApplied] = useState('')
-  const [page, setPage] = useState(1)
-  const path = '/api/admin/users' + query({ search: applied, page, pageSize: 12 })
-  const { data, error, loading, reload } = useApi<PagedResult<UserRow>>(path, [path])
-  const [editing, setEditing] = useState<UserRow | null>(null)
-  const [roles, setRoles] = useState<string[]>([])
-  const [msg, setMsg] = useState<Msg>(null)
-
-  async function saveRoles() {
-    if (!editing) return
-    try {
-      const r = await api<MessageResponse>(`/api/admin/users/${editing.userId}/roles`, {
-        method: 'PUT',
-        body: { roles },
-      })
-      setMsg({ kind: 'success', text: `${editing.fullName}: ${r.message}` })
-      setEditing(null)
-      reload()
+      message.success(t('Кампанію створено'))
+      setCreating(false)
+      await list.reload()
+      setId(r.campaignId)
     } catch (e) {
-      setMsg({ kind: 'error', text: (e as Error).message })
+      message.error((e as Error).message, 6)
     }
   }
 
-  async function toggleBlock(u: UserRow) {
-    try {
-      const r = await api<MessageResponse>(`/api/admin/users/${u.userId}/block`, {
-        method: 'PUT',
-        body: { isBlocked: !u.isBlocked },
-      })
-      setMsg({ kind: 'success', text: `${u.fullName}: ${r.message}` })
-      reload()
-    } catch (e) {
-      setMsg({ kind: 'error', text: (e as Error).message })
-    }
+  const startCreate = () => {
+    const y = (list.data?.all[0]?.campaignYear ?? dayjs().year()) + 1
+    const base = c ? toForm(c) : undefined
+    const shift = (d: Dayjs) => d.year(y)
+    form.setFieldsValue({
+      ...(base ?? {}),
+      campaignYear: y,
+      name: `Громадський бюджет ${y}`,
+      submission: base ? [shift(base.submission[0]), shift(base.submission[1])] : undefined,
+      reviewEnd: base ? shift(base.reviewEnd) : undefined,
+      voting: base ? [shift(base.voting[0]), shift(base.voting[1])] : undefined,
+      resultsDate: base ? shift(base.resultsDate) : undefined,
+    } as CampaignForm)
+    setCreating(true)
+    setRating(null)
   }
 
-  return (
-    <>
-      <PageHeader title="Користувачі та ролі" subtitle={data && `Усього: ${data.total}`} />
-      <form
-        className="card inline-form"
-        onSubmit={(e) => {
-          e.preventDefault()
-          setPage(1)
-          setApplied(search)
-        }}
-      >
-        <input
-          placeholder="Пошук за прізвищем, ім’ям або e-mail"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button className="btn btn-primary">Знайти</button>
-      </form>
-      {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
-      <Alert>{error}</Alert>
-      {loading && !data ? (
-        <Loading />
-      ) : (
-        <div className="card">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>№</th>
-                <th>ПІБ</th>
-                <th>E-mail</th>
-                <th>Дата народження</th>
-                <th>Верифікація</th>
-                <th>Ролі</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.items.map((u) => (
-                <tr key={u.userId} className={u.isBlocked ? 'row-blocked' : ''}>
-                  <td>{u.userId}</td>
-                  <td>
-                    {u.fullName}
-                    {u.isBlocked && <small className="block warn-text">заблоковано</small>}
-                  </td>
-                  <td>{u.email ?? <span className="muted">лише BankID</span>}</td>
-                  <td>{formatDate(u.birthDate)}</td>
-                  <td>
-                    {verificationNames[u.verificationStatus]}
-                    {u.verificationMethod && (
-                      <small className="block muted">{methodNames[u.verificationMethod]}</small>
-                    )}
-                  </td>
-                  <td>
-                    {u.roles.map((r) => (
-                      <span key={r} className="chip">
-                        {roleNames[r] ?? r}
-                      </span>
-                    ))}
-                  </td>
-                  <td className="nowrap">
-                    <button
-                      className="btn btn-light btn-sm"
-                      onClick={() => {
-                        setEditing(u)
-                        setRoles(u.roles)
-                      }}
-                    >
-                      Ролі
-                    </button>{' '}
-                    <button
-                      className={`btn btn-sm ${u.isBlocked ? 'btn-success' : 'btn-danger'}`}
-                      onClick={() => toggleBlock(u)}
-                    >
-                      {u.isBlocked ? 'Розблокувати' : 'Заблокувати'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {data && <Pager page={data.page} pageSize={data.pageSize} total={data.total} onPage={setPage} />}
-        </div>
-      )}
-
-      {editing && (
-        <div className="modal-backdrop" onClick={() => setEditing(null)}>
-          <div
-            className="modal"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="Ролі користувача"
-          >
-            <h2>Ролі: {editing.fullName}</h2>
-            {refs?.roles.map((r) => (
-              <label key={r.code} className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={roles.includes(r.code)}
-                  onChange={(e) =>
-                    setRoles((rs) => (e.target.checked ? [...rs, r.code] : rs.filter((x) => x !== r.code)))
-                  }
-                />
-                {r.name}
-              </label>
-            ))}
-            <div className="form-actions">
-              <button className="btn btn-light" onClick={() => setEditing(null)}>
-                Скасувати
-              </button>
-              <button className="btn btn-primary" onClick={saveRoles}>
-                Зберегти
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  )
-}
-
-// ======================================================================
-// Журнал аудиту (ADO.NET: SqlDataAdapter + DataTable, OFFSET … FETCH NEXT)
-// ======================================================================
-
-export function AdminAuditPage() {
-  const [page, setPage] = useState(1)
-  const [entity, setEntity] = useState('')
-  const path = '/api/admin/audit' + query({ page, pageSize: 20, entity })
-  const { data, error, loading } = useApi<PagedResult<AuditRow>>(path, [path])
+  const statusIdx = c ? campaignStatusOrder.indexOf(c.status) : 0
+  const groups = new Map<string, WinnerRow[]>()
+  for (const r of rating ?? []) groups.set(r.categoryName, [...(groups.get(r.categoryName) ?? []), r])
 
   return (
     <>
-      <PageHeader
-        title="Журнал аудиту"
-        subtitle="Зміни статусів проєктів записує тригер TR_Project_StatusChange; входи й дії адміністратора — застосунок"
-        actions={
-          <Field label="Об’єкт">
-            <select
-              value={entity}
-              onChange={(e) => {
-                setPage(1)
-                setEntity(e.target.value)
-              }}
-            >
-              <option value="">Усі</option>
-              <option value="Project">Проєкти</option>
-              <option value="Campaign">Кампанії</option>
-              <option value="UserAccount">Користувачі</option>
-            </select>
-          </Field>
-        }
-      />
-      <Alert>{error}</Alert>
-      {loading && !data ? (
-        <Loading />
-      ) : (
-        <div className="card">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Час</th>
-                <th>Користувач</th>
-                <th>Дія</th>
-                <th>Об’єкт</th>
-                <th>Деталі</th>
-                <th>IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.items.map((a) => (
-                <tr key={a.auditId}>
-                  <td className="nowrap">{formatDateTime(a.createdAt)}</td>
-                  <td>{a.userName ?? <span className="muted">система</span>}</td>
-                  <td>{auditActions[a.actionCode] ?? a.actionCode}</td>
-                  <td className="nowrap">
-                    {a.entityName === 'Project' && a.entityId ? (
-                      <Link to={`/projects/${a.entityId}`}>Проєкт #{a.entityId}</Link>
-                    ) : (
-                      `${a.entityName} #${a.entityId ?? ''}`
-                    )}
-                  </td>
-                  <td>{translateDetails(a.details)}</td>
-                  <td className="muted">{a.ipAddress ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {data && (
+      <PageTitle
+        title={creating ? t('Нова кампанія') : t('Кампанія')}
+        subtitle={t('Параметри, строки етапів, ліміти категорій, перемикання етапів, визначення переможців')}
+        help="adminCampaign"
+        extra={
+          !creating && (
             <>
-              <p className="muted small">Записів: {data.total}</p>
-              <Pager page={data.page} pageSize={data.pageSize} total={data.total} onPage={setPage} />
+              {list.data && <CampaignSelect campaigns={list.data.all} value={selected} onChange={setId} />}
+              <Button icon={<PlusOutlined />} onClick={startCreate}>
+                {t('Нова кампанія')}
+              </Button>
             </>
-          )}
-        </div>
-      )}
+          )
+        }
+      />
+      <LoadState loading={campaign.loading && !c} error={campaign.error ?? list.error}>
+        {c && (
+          <>
+            {!creating && (
+              <Card
+                style={{ marginBottom: 24 }}
+                title={
+                  <Space>
+                    {t('Етап кампанії')} <CampaignTag status={c.status} />
+                  </Space>
+                }
+              >
+                <Steps
+                  current={statusIdx}
+                  size="small"
+                  responsive
+                  onChange={(i) => i !== statusIdx && setStatus(campaignStatusOrder[i])}
+                  items={campaignStatusOrder.map((s) => ({ title: t(campaignStatus[s]) }))}
+                />
+                <Typography.Paragraph type="secondary" style={{ margin: '12px 0 0' }}>
+                  {t('Натисніть на етап, щоб перемкнути кампанію.')}
+                </Typography.Paragraph>
+                <Divider />
+                <Flex gap={16} align="center" wrap>
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<CrownOutlined />}
+                    loading={selecting}
+                    disabled={c.status !== 'counting'}
+                    onClick={() => void selectWinners()}
+                  >
+                    {t('Визначити переможців')}
+                  </Button>
+                  <Typography.Text type="secondary">
+                    {c.status === 'counting'
+                      ? t('Процедура usp_SelectWinners відбере проєкти в межах лімітів категорій.')
+                      : t('Доступно на етапі «Підрахунок голосів».')}
+                  </Typography.Text>
+                </Flex>
+              </Card>
+            )}
+
+            {rating && (
+              <Card
+                title={
+                  <Space>
+                    <TrophyFilled style={{ color: '#d4a017' }} /> {t('Рейтинг і переможці')}
+                  </Space>
+                }
+                extra={
+                  <ExportButton
+                    path={`/api/reports/winners?campaignId=${c.campaignId}`}
+                    label="Перелік переможців"
+                  />
+                }
+                style={{ marginBottom: 24 }}
+              >
+                {[...groups.entries()].map(([cat, rows]) => {
+                  let used = 0
+                  return (
+                    <div key={cat} style={{ marginBottom: 20 }}>
+                      <Typography.Title level={5}>
+                        {t(cat)} · {t('ліміт')} {formatMoney(rows[0].categoryLimit)}
+                      </Typography.Title>
+                      <Table
+                        size="small"
+                        rowKey="projectId"
+                        pagination={false}
+                        dataSource={rows}
+                        scroll={{ x: 700 }}
+                        rowClassName={(r) => (r.isWinner ? 'row-winner' : '')}
+                        columns={[
+                          { title: t('Місце'), dataIndex: 'place', width: 70 },
+                          {
+                            title: t('Проєкт'),
+                            render: (_, r) => (
+                              <Link to={`/projects/${r.projectId}`}>
+                                {r.regNumber} {r.title}
+                              </Link>
+                            ),
+                          },
+                          { title: t('Голоси'), dataIndex: 'votes', align: 'right', width: 80 },
+                          {
+                            title: t('Вартість'),
+                            dataIndex: 'cost',
+                            align: 'right',
+                            width: 130,
+                            render: (v: number) => formatMoney(v),
+                          },
+                          {
+                            title: t('Залишок ліміту'),
+                            align: 'right',
+                            width: 150,
+                            render: (_, r) => {
+                              const before = r.categoryLimit - used
+                              if (r.isWinner) used += r.cost
+                              return formatMoney(before)
+                            },
+                          },
+                          {
+                            title: t('Результат'),
+                            width: 170,
+                            render: (_, r) =>
+                              r.isWinner ? (
+                                <Tag color="success">{t('Переможець')}</Tag>
+                              ) : (
+                                <Tag>{t('Не вміщується в ліміт')}</Tag>
+                              ),
+                          },
+                        ]}
+                      />
+                    </div>
+                  )
+                })}
+              </Card>
+            )}
+
+            <Form form={form} layout="vertical" requiredMark={false}>
+              <Row gutter={[24, 0]}>
+                <Col xs={24} lg={14}>
+                  <Card title={t('Параметри кампанії')} style={{ marginBottom: 24 }}>
+                    <Row gutter={16}>
+                      <Col xs={24} sm={16}>
+                        <Form.Item
+                          name="name"
+                          label={t('Назва')}
+                          rules={[{ required: true, message: t('Вкажіть назву кампанії.') }]}
+                        >
+                          <Input />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={8}>
+                        <Form.Item name="campaignYear" label={t('Рік')} rules={[{ required: true }]}>
+                          <InputNumber min={2000} max={2100} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={8}>
+                        <Form.Item
+                          name="totalBudget"
+                          label={t('Загальний бюджет, грн')}
+                          rules={[{ required: true }]}
+                        >
+                          <InputNumber min={1} step={100000} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={12} sm={8}>
+                        <Form.Item
+                          name="minProjectCost"
+                          label={t('Мін. вартість, грн')}
+                          rules={[{ required: true }]}
+                        >
+                          <InputNumber min={1} step={10000} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={12} sm={8}>
+                        <Form.Item
+                          name="maxProjectCost"
+                          label={t('Макс. вартість, грн')}
+                          rules={[{ required: true }]}
+                        >
+                          <InputNumber min={1} step={50000} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Divider orientation="left" plain>
+                      {t('Строки етапів')}
+                    </Divider>
+                    <Row gutter={16}>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          name="submission"
+                          label={t('Подання проєктів')}
+                          rules={[{ required: true }]}
+                        >
+                          <DatePicker.RangePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item name="reviewEnd" label={t('Розгляд — до')} rules={[{ required: true }]}>
+                          <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item name="voting" label={t('Голосування')} rules={[{ required: true }]}>
+                          <DatePicker.RangePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} sm={12}>
+                        <Form.Item
+                          name="resultsDate"
+                          label={t('Оголошення результатів')}
+                          rules={[{ required: true }]}
+                        >
+                          <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Divider orientation="left" plain>
+                      {t('Правила голосування')}
+                    </Divider>
+                    <Row gutter={16}>
+                      <Col xs={12} sm={6}>
+                        <Form.Item
+                          name="votesPerVoter"
+                          label={t('Голосів у виборця')}
+                          tooltip={t('За ТЗ — 5')}
+                        >
+                          <InputNumber min={1} max={50} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={12} sm={6}>
+                        <Form.Item
+                          name="maxVotesPerProject"
+                          label={t('За один проєкт')}
+                          tooltip={t('За ТЗ — не більше 2')}
+                        >
+                          <InputNumber min={1} max={50} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={12} sm={6}>
+                        <Form.Item name="minVoterAge" label={t('Вік з')} tooltip={t('За ТЗ — з 16 років')}>
+                          <InputNumber min={14} max={100} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={12} sm={6}>
+                        <Form.Item name="maxProjectsPerAuthor" label={t('Проєктів на автора')}>
+                          <InputNumber min={1} max={50} style={{ width: '100%' }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Form.Item
+                      name="showInterimResults"
+                      valuePropName="checked"
+                      label={t('Показувати проміжні результати під час голосування')}
+                    >
+                      <Switch />
+                    </Form.Item>
+                  </Card>
+                </Col>
+                <Col xs={24} lg={10}>
+                  <Card title={t('Ліміти категорій')} style={{ marginBottom: 24 }}>
+                    <Typography.Paragraph type="secondary">
+                      {t('Порожнє поле — категорія не відкрита в кампанії.')}
+                    </Typography.Paragraph>
+                    {(refs.data?.categories ?? []).map((cat) => (
+                      <Form.Item
+                        key={cat.id}
+                        name={['limits', String(cat.id)]}
+                        label={t(cat.name)}
+                        style={{ marginBottom: 12 }}
+                      >
+                        <InputNumber min={0} step={50000} style={{ width: '100%' }} addonAfter={t('грн')} />
+                      </Form.Item>
+                    ))}
+                  </Card>
+                  <Flex gap={8}>
+                    {creating ? (
+                      <>
+                        <Button
+                          type="primary"
+                          size="large"
+                          icon={<PlusOutlined />}
+                          onClick={() => void create()}
+                        >
+                          {t('Створити кампанію')}
+                        </Button>
+                        <Button
+                          size="large"
+                          onClick={() => {
+                            setCreating(false)
+                            form.setFieldsValue(toForm(c))
+                          }}
+                        >
+                          {t('Скасувати')}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        type="primary"
+                        size="large"
+                        icon={<SaveOutlined />}
+                        loading={saving}
+                        onClick={() => void save()}
+                      >
+                        {t('Зберегти параметри')}
+                      </Button>
+                    )}
+                  </Flex>
+                </Col>
+              </Row>
+            </Form>
+          </>
+        )}
+      </LoadState>
     </>
   )
 }
 
-/** «було published, стало winner» → українські назви статусів. */
-function translateDetails(details: string | null) {
-  if (!details) return '—'
-  return details.replace(/\b([a-z_]+)\b/g, (m) => projectStatus[m] ?? campaignStatus[m] ?? m)
-}
+// ======================= Статистика =======================
 
-// ======================================================================
-// Зведена статистика (LINQ: join … group … by … into)
-// ======================================================================
-
-function Bar({ value, max, label }: { value: number; max: number; label: string }) {
-  return (
-    <div className="stat-bar" title={label}>
-      <span style={{ width: `${max ? (value / max) * 100 : 0}%` }} />
-    </div>
-  )
-}
+const COLORS = [
+  '#1f5c99',
+  '#43a047',
+  '#ef6c00',
+  '#8e24aa',
+  '#00838f',
+  '#c62828',
+  '#6d4c41',
+  '#546e7a',
+  '#d4a017',
+  '#5c6bc0',
+]
 
 export function AdminStatisticsPage() {
-  const campaigns = useApi<Campaign[]>('/api/campaigns')
-  const [id, setId] = useState('')
-  const cid = id || String(campaigns.data?.[0]?.campaignId ?? '')
-  const { data, error, loading } = useApi<Statistics>(
-    cid ? `/api/admin/statistics?campaignId=${cid}` : null,
-    [cid],
+  const { t } = useTranslation()
+  const { list, selected, setId } = useCampaigns()
+  const st = useLoad(
+    () =>
+      selected ? api<Statistics>(`/api/admin/statistics?campaignId=${selected}`) : Promise.resolve(null),
+    [selected],
   )
-
-  const maxCat = Math.max(0, ...(data?.byCategory.map((c) => c.totalVotes) ?? []))
-  const maxDist = Math.max(0, ...(data?.byDistrict.map((c) => c.totalVotes) ?? []))
+  const s = st.data
 
   return (
     <>
-      <PageHeader
-        title="Зведена статистика"
-        subtitle={data?.campaign.name}
-        actions={
-          <Field label="Кампанія">
-            <select value={cid} onChange={(e) => setId(e.target.value)}>
-              {campaigns.data?.map((c) => (
-                <option key={c.campaignId} value={c.campaignId}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+      <PageTitle
+        title={t('Статистика')}
+        subtitle={t('Зведені показники кампанії')}
+        help="adminStatistics"
+        extra={
+          <>
+            {list.data && <CampaignSelect campaigns={list.data.all} value={selected} onChange={setId} />}
+            {selected && <ExportButton path={`/api/reports/statistics?campaignId=${selected}`} />}
+          </>
         }
       />
-      <Alert>{error}</Alert>
-      {loading && !data ? (
-        <Loading />
-      ) : (
-        data && (
+      <LoadState loading={st.loading && !s} error={st.error}>
+        {s && (
           <>
-            <div className="tiles">
-              <div className="tile">
-                <b>{data.summary.projects}</b>
-                <span>проєктів у кампанії</span>
-                <small>опубліковано: {data.summary.publishedProjects}</small>
-              </div>
-              <div className="tile">
-                <b>{data.summary.votes}</b>
-                <span>голосів</span>
-                <small>
-                  онлайн {data.summary.onlineVotes} · паперові {data.summary.paperVotes}
-                </small>
-              </div>
-              <div className="tile">
-                <b>{data.summary.voters}</b>
-                <span>виборців проголосувало</span>
-              </div>
-              <div className="tile">
-                <b>{data.summary.users}</b>
-                <span>користувачів</span>
-                <small>верифіковано: {data.summary.verifiedUsers}</small>
-              </div>
-            </div>
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              {[
+                {
+                  title: t('Користувачів'),
+                  value: s.summary.users,
+                  suffix: `/ ${s.summary.verifiedUsers} ${t('верифік.')}`,
+                },
+                {
+                  title: t('Проєктів'),
+                  value: s.summary.projects,
+                  suffix: `/ ${s.summary.publishedProjects} ${t('опублік.')}`,
+                },
+                { title: t('Виборців'), value: s.summary.voters },
+                {
+                  title: t('Голосів'),
+                  value: s.summary.votes,
+                  suffix: `(${s.summary.paperVotes} ${t('папір.')})`,
+                },
+              ].map((x) => (
+                <Col xs={12} lg={6} key={x.title}>
+                  <Card>
+                    <Statistic
+                      title={x.title}
+                      value={x.value}
+                      suffix={<span style={{ fontSize: 14 }}>{x.suffix}</span>}
+                    />
+                  </Card>
+                </Col>
+              ))}
+            </Row>
 
-            <section className="card">
-              <h2>За категоріями</h2>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Категорія</th>
-                    <th className="num">Проєктів</th>
-                    <th className="num">Сумарна вартість</th>
-                    <th className="num">Ліміт</th>
-                    <th style={{ width: '32%' }}>Голоси</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.byCategory.map((c) => (
-                    <tr key={c.categoryName}>
-                      <td>{c.categoryName}</td>
-                      <td className="num">{c.projectCount}</td>
-                      <td className={`num ${c.totalCost > c.budgetLimit ? 'warn-text' : ''}`}>
-                        {formatMoney(c.totalCost)}
-                      </td>
-                      <td className="num">{formatMoney(c.budgetLimit)}</td>
-                      <td>
-                        <div className="bar-cell">
-                          <Bar
-                            value={c.totalVotes}
-                            max={maxCat}
-                            label={`${c.categoryName}: ${c.totalVotes} голосів`}
-                          />
-                          <b>{c.totalVotes}</b>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="muted small">
-                Червоним — категорії, де заявлено більше, ніж дозволяє ліміт (конкуренція за кошти).
-              </p>
-            </section>
-
-            <div className="grid-2">
-              <section className="card">
-                <h2>За районами</h2>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Район</th>
-                      <th className="num">Проєктів</th>
-                      <th style={{ width: '45%' }}>Голоси</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.byDistrict.map((d) => (
-                      <tr key={d.districtName}>
-                        <td>{d.districtName}</td>
-                        <td className="num">{d.projectCount}</td>
-                        <td>
-                          <div className="bar-cell">
-                            <Bar
-                              value={d.totalVotes}
-                              max={maxDist}
-                              label={`${d.districtName}: ${d.totalVotes} голосів`}
-                            />
-                            <b>{d.totalVotes}</b>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
-              <section className="card">
-                <h2>Проєкти за статусами</h2>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Статус</th>
-                      <th className="num">Кількість</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.byStatus.map((s) => (
-                      <tr key={s.status}>
-                        <td>{projectStatus[s.status] ?? s.status}</td>
-                        <td className="num">{s.count}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
-            </div>
+            <Row gutter={[24, 24]}>
+              <Col xs={24} lg={14}>
+                <Card title={t('Голоси та проєкти за категоріями')}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={s.byCategory.map((c) => ({ ...c, categoryName: t(c.categoryName) }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="categoryName" tick={{ fontSize: 12 }} />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="totalVotes" name={t('Голоси')} fill="#1f5c99" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="projectCount" name={t('Проєкти')} fill="#43a047" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+              </Col>
+              <Col xs={24} lg={10}>
+                <Card title={t('Способи голосування')}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: t('Онлайн'), value: s.summary.onlineVotes },
+                          { name: t('Паперові бюлетені'), value: s.summary.paperVotes },
+                        ]}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        outerRadius={100}
+                        label
+                      >
+                        <Cell fill="#1f5c99" />
+                        <Cell fill="#ef6c00" />
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Card>
+              </Col>
+              <Col xs={24} lg={14}>
+                <Card title={t('Вартість проєктів і ліміти категорій, грн')}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={s.byCategory.map((c) => ({ ...c, categoryName: t(c.categoryName) }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="categoryName" tick={{ fontSize: 12 }} />
+                      <YAxis tickFormatter={(v: number) => `${v / 1000}k`} />
+                      <Tooltip formatter={(v: number) => formatMoney(v)} />
+                      <Legend />
+                      <Bar
+                        dataKey="totalCost"
+                        name={t('Заявлена вартість')}
+                        fill="#8e24aa"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar dataKey="budgetLimit" name={t('Ліміт')} fill="#b0bec5" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+              </Col>
+              <Col xs={24} lg={10}>
+                <Card title={t('Проєкти за статусами')}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={s.byStatus.map((x) => ({
+                          name: t(projectStatus[x.status] ?? x.status),
+                          value: x.count,
+                        }))}
+                        dataKey="value"
+                        nameKey="name"
+                        outerRadius={100}
+                        label
+                      >
+                        {s.byStatus.map((x, i) => (
+                          <Cell key={x.status} fill={COLORS[i % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Card>
+              </Col>
+              <Col xs={24} lg={14}>
+                <Card title={t('Голоси за районами')}>
+                  <ResponsiveContainer width="100%" height={Math.max(220, s.byDistrict.length * 34)}>
+                    <BarChart
+                      data={s.byDistrict.map((d) => ({ ...d, districtName: t(d.districtName) }))}
+                      layout="vertical"
+                      margin={{ left: 40 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} />
+                      <YAxis type="category" dataKey="districtName" width={120} tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Bar dataKey="totalVotes" name={t('Голоси')} fill="#00838f" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+              </Col>
+              <Col xs={24} lg={10}>
+                <Card title={t('Освоєння бюджету')}>
+                  <Descriptions
+                    column={1}
+                    size="small"
+                    items={[
+                      { label: t('Бюджет кампанії'), children: formatMoney(s.campaign.totalBudget) },
+                      { label: t('Вартість переможців'), children: formatMoney(s.budgetUsage.winnersCost) },
+                      {
+                        label: t('Карток реалізації'),
+                        children: `${s.budgetUsage.implementations} (${t('завершено')}: ${s.budgetUsage.completed})`,
+                      },
+                      { label: t('План за картками'), children: formatMoney(s.budgetUsage.plannedBudget) },
+                      { label: t('Фактично витрачено'), children: formatMoney(s.budgetUsage.actualCost) },
+                    ]}
+                  />
+                  {s.budgetUsage.plannedBudget > 0 && (
+                    <Statistic
+                      style={{ marginTop: 12 }}
+                      title={t('Освоєно від плану')}
+                      value={(s.budgetUsage.actualCost / s.budgetUsage.plannedBudget) * 100}
+                      precision={1}
+                      suffix="%"
+                    />
+                  )}
+                </Card>
+              </Col>
+            </Row>
           </>
-        )
-      )}
+        )}
+      </LoadState>
+    </>
+  )
+}
+
+// ======================= Звіти =======================
+
+export function AdminReportsPage() {
+  const { t } = useTranslation()
+  const { list, selected, setId } = useCampaigns()
+  const refs = useLoad(() => api<References>('/api/reference'), [])
+  const [projectNo, setProjectNo] = useState<number | null>(null)
+  const [catalog, setCatalog] = useState<{
+    categoryId?: number
+    districtId?: number
+    minCost?: number
+    maxCost?: number
+  }>({})
+  const projects = useLoad(
+    () =>
+      selected
+        ? api<PagedResult<{ projectId: number; regNumber: string; title: string }>>(
+            `/api/projects?campaignId=${selected}&pageSize=100&sort=title`,
+          )
+        : Promise.resolve(null),
+    [selected],
+  )
+
+  const group = (title: string, items: { name: string; note: string; action: React.ReactNode }[]) => (
+    <Card title={t(title)} style={{ marginBottom: 24 }}>
+      <List
+        dataSource={items}
+        renderItem={(i) => (
+          <List.Item actions={[i.action]}>
+            <List.Item.Meta title={t(i.name)} description={t(i.note)} />
+          </List.Item>
+        )}
+      />
+    </Card>
+  )
+
+  return (
+    <>
+      <PageTitle
+        title={t('Звіти')}
+        subtitle={t(
+          'Експорт у PDF, Excel (XLSX) і CSV. У шапці — назва ІС, кампанія, дата формування і хто сформував.',
+        )}
+        help="reports"
+        extra={list.data && <CampaignSelect campaigns={list.data.all} value={selected} onChange={setId} />}
+      />
+      {group('а) Вихідна інформація', [
+        {
+          name: 'Картка проєкту',
+          note: 'Опис, кошторис, голоси, історія розгляду',
+          action: (
+            <Space key="p" wrap>
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder={t('Оберіть проєкт')}
+                style={{ width: 280 }}
+                value={projectNo ?? undefined}
+                onChange={setProjectNo}
+                options={(projects.data?.items ?? []).map((p) => ({
+                  value: p.projectId,
+                  label: `${p.regNumber} ${p.title}`,
+                }))}
+              />
+              <ExportButton path={`/api/reports/project/${projectNo ?? 0}`} />
+            </Space>
+          ),
+        },
+        {
+          name: 'Перелік переможців',
+          note: 'Проєкти-переможці кампанії за категоріями',
+          action: <ExportButton key="w" path={`/api/reports/winners${query({ campaignId: selected })}`} />,
+        },
+        {
+          name: 'Хід реалізації',
+          note: 'Картки реалізації: підрядник, план/факт, етапи',
+          action: <ExportButton key="i" path="/api/reports/implementation" />,
+        },
+      ])}
+      {group('б) Результати фільтрації', [
+        {
+          name: 'Каталог за фільтром',
+          note: 'Умови фільтра потрапляють у шапку звіту',
+          action: (
+            <Space key="c" wrap>
+              <Select
+                allowClear
+                placeholder={t('Категорія')}
+                style={{ width: 150 }}
+                onChange={(v) => setCatalog((x) => ({ ...x, categoryId: v }))}
+                options={(refs.data?.categories ?? []).map((c) => ({ value: c.id, label: t(c.name) }))}
+              />
+              <Select
+                allowClear
+                placeholder={t('Район')}
+                style={{ width: 160 }}
+                onChange={(v) => setCatalog((x) => ({ ...x, districtId: v }))}
+                options={(refs.data?.districts ?? []).map((c) => ({ value: c.id, label: t(c.name) }))}
+              />
+              <InputNumber
+                placeholder={t('від, грн')}
+                min={0}
+                step={50000}
+                onChange={(v) => setCatalog((x) => ({ ...x, minCost: v ?? undefined }))}
+              />
+              <InputNumber
+                placeholder={t('до, грн')}
+                min={0}
+                step={50000}
+                onChange={(v) => setCatalog((x) => ({ ...x, maxCost: v ?? undefined }))}
+              />
+              <ExportButton path={`/api/reports/catalog${query({ campaignId: selected, ...catalog })}`} />
+            </Space>
+          ),
+        },
+      ])}
+      {group('в) Результати запитів', [
+        {
+          name: 'Результати голосування',
+          note: 'Рейтинг за категоріями, голоси онлайн і паперові',
+          action: <ExportButton key="r" path={`/api/reports/results${query({ campaignId: selected })}`} />,
+        },
+        {
+          name: 'Зведена статистика',
+          note: 'Учасники, проєкти, голоси, освоєння бюджету, розподіл за категоріями й районами',
+          action: <ExportButton key="s" path={`/api/reports/statistics${query({ campaignId: selected })}`} />,
+        },
+      ])}
+    </>
+  )
+}
+
+// ======================= Користувачі й ролі =======================
+
+export function AdminUsersPage() {
+  const { t } = useTranslation()
+  const { message, modal } = App.useApp()
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const users = useLoad(
+    () => api<PagedResult<UserRow>>(`/api/admin/users${query({ search, page, pageSize: 15 })}`),
+    [search, page],
+  )
+  const refs = useLoad(() => api<References>('/api/reference'), [])
+  const [editing, setEditing] = useState<UserRow | null>(null)
+  const [roles, setRoles] = useState<string[]>([])
+
+  const act = async (fn: () => Promise<{ message: string }>) => {
+    try {
+      const r = await fn()
+      message.success(r.message)
+      void users.reload()
+    } catch (e) {
+      message.error((e as Error).message)
+    }
+  }
+
+  return (
+    <>
+      <PageTitle
+        title={t('Користувачі й ролі')}
+        subtitle={t('Призначення ролей (RBAC), блокування, двофакторна автентифікація')}
+        help="adminUsers"
+      />
+      <Card>
+        <Input.Search
+          allowClear
+          placeholder={t('Прізвище, ім’я або e-mail')}
+          onSearch={(v) => {
+            setPage(1)
+            setSearch(v)
+          }}
+          style={{ maxWidth: 360, marginBottom: 16 }}
+        />
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={t('Кожен перегляд списку записується в журнал аудиту як доступ до персональних даних.')}
+        />
+        <LoadState loading={users.loading && !users.data} error={users.error}>
+          <Table
+            rowKey="userId"
+            dataSource={users.data?.items ?? []}
+            scroll={{ x: 900 }}
+            pagination={{
+              current: page,
+              pageSize: 15,
+              total: users.data?.total,
+              onChange: setPage,
+              showSizeChanger: false,
+            }}
+            columns={[
+              {
+                title: t('Користувач'),
+                render: (_, u) => (
+                  <>
+                    <b>{u.fullName}</b>
+                    <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+                      {u.email ?? t('без e-mail (лише BankID)')}
+                    </div>
+                  </>
+                ),
+              },
+              { title: t('Нар.'), dataIndex: 'birthDate', width: 110, render: (v: string) => formatDate(v) },
+              {
+                title: t('Верифікація'),
+                width: 170,
+                render: (_, u) => (
+                  <Tag color={u.verificationStatus === 'verified' ? 'green' : 'orange'}>
+                    {t(verificationNames[u.verificationStatus] ?? u.verificationStatus)}
+                    {u.verificationMethod && ` · ${methodNames[u.verificationMethod]}`}
+                  </Tag>
+                ),
+              },
+              {
+                title: t('Ролі'),
+                render: (_, u) =>
+                  u.roles.map((r) => (
+                    <Tag key={r} color={r === 'admin' ? 'gold' : 'blue'}>
+                      {t(roleNames[r] ?? r)}
+                    </Tag>
+                  )),
+              },
+              {
+                title: t('Стан'),
+                width: 120,
+                render: (_, u) =>
+                  u.isBlocked ? (
+                    <Tag color="error">{t('Заблоковано')}</Tag>
+                  ) : (
+                    <Tag color="success">{t('Активний')}</Tag>
+                  ),
+              },
+              {
+                title: '',
+                width: 60,
+                render: (_, u) => (
+                  <Dropdown
+                    trigger={['click']}
+                    menu={{
+                      items: [
+                        { key: 'roles', icon: <TeamOutlined />, label: t('Змінити ролі') },
+                        u.isBlocked
+                          ? { key: 'unblock', icon: <UnlockOutlined />, label: t('Розблокувати') }
+                          : { key: 'block', icon: <LockOutlined />, label: t('Заблокувати'), danger: true },
+                        { key: '2fa-on', icon: <SafetyOutlined />, label: t('Увімкнути 2FA') },
+                        { key: '2fa-off', icon: <SafetyOutlined />, label: t('Вимкнути 2FA') },
+                      ],
+                      onClick: ({ key }) => {
+                        if (key === 'roles') {
+                          setEditing(u)
+                          setRoles(u.roles)
+                        }
+                        if (key === 'block' || key === 'unblock')
+                          modal.confirm({
+                            title:
+                              key === 'block'
+                                ? t('Заблокувати користувача?')
+                                : t('Розблокувати користувача?'),
+                            content: u.fullName,
+                            okText: t('Так'),
+                            cancelText: t('Ні'),
+                            onOk: () =>
+                              act(() =>
+                                api(`/api/admin/users/${u.userId}/block`, {
+                                  method: 'PUT',
+                                  body: { isBlocked: key === 'block' },
+                                }),
+                              ),
+                          })
+                        if (key.startsWith('2fa'))
+                          void act(() =>
+                            api(`/api/admin/users/${u.userId}/two-factor`, {
+                              method: 'PUT',
+                              body: { enabled: key === '2fa-on' },
+                            }),
+                          )
+                      },
+                    }}
+                  >
+                    <Button size="small" icon={<MoreOutlined />} aria-label={t('Дії')} />
+                  </Dropdown>
+                ),
+              },
+            ]}
+          />
+        </LoadState>
+      </Card>
+      <Modal
+        open={!!editing}
+        title={`${t('Ролі')}: ${editing?.fullName}`}
+        okText={t('Зберегти')}
+        cancelText={t('Скасувати')}
+        onCancel={() => setEditing(null)}
+        onOk={async () => {
+          await act(() =>
+            api(`/api/admin/users/${editing!.userId}/roles`, { method: 'PUT', body: { roles } }),
+          )
+          setEditing(null)
+        }}
+      >
+        <Checkbox.Group
+          value={roles}
+          onChange={(v) => setRoles(v as string[])}
+          options={(refs.data?.roles ?? []).map((r) => ({
+            value: r.code,
+            label: t(roleNames[r.code] ?? r.name),
+          }))}
+          style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+        />
+      </Modal>
+    </>
+  )
+}
+
+// ======================= Журнал аудиту =======================
+
+export function AdminAuditPage() {
+  const { t } = useTranslation()
+  const [filter, setFilter] = useState<{
+    from?: string
+    to?: string
+    user?: string
+    action?: string
+    entity?: string
+  }>({})
+  const [page, setPage] = useState(1)
+  const values = useLoad(() => api<{ actions: string[]; entities: string[] }>('/api/admin/audit/filters'), [])
+  const audit = useLoad(
+    () => api<PagedResult<AuditRow>>(`/api/admin/audit${query({ ...filter, page, pageSize: 20 })}`),
+    [filter, page],
+  )
+  const set = (patch: Partial<typeof filter>) => {
+    setPage(1)
+    setFilter((f) => ({ ...f, ...patch }))
+  }
+
+  return (
+    <>
+      <PageTitle
+        title={t('Журнал аудиту')}
+        subtitle={t('Хто, що і коли змінював у системі')}
+        help="adminAudit"
+      />
+      <Card style={{ marginBottom: 16 }}>
+        <Flex gap={12} wrap>
+          <DatePicker.RangePicker
+            format="DD.MM.YYYY"
+            onChange={(r) => set({ from: r?.[0]?.format('YYYY-MM-DD'), to: r?.[1]?.format('YYYY-MM-DD') })}
+            placeholder={[t('Період з'), t('по')]}
+          />
+          <Input.Search
+            allowClear
+            placeholder={t('Користувач')}
+            onSearch={(v) => set({ user: v || undefined })}
+            style={{ width: 220 }}
+          />
+          <Select
+            allowClear
+            placeholder={t('Дія')}
+            style={{ width: 260 }}
+            onChange={(v) => set({ action: v })}
+            options={(values.data?.actions ?? []).map((a) => ({ value: a, label: t(auditActions[a] ?? a) }))}
+          />
+          <Select
+            allowClear
+            placeholder={t('Об’єкт')}
+            style={{ width: 200 }}
+            onChange={(v) => set({ entity: v })}
+            options={(values.data?.entities ?? []).map((e) => ({ value: e, label: e }))}
+          />
+        </Flex>
+      </Card>
+      <Card>
+        <LoadState loading={audit.loading && !audit.data} error={audit.error}>
+          <Table
+            rowKey="auditId"
+            size="small"
+            dataSource={audit.data?.items ?? []}
+            scroll={{ x: 900 }}
+            locale={{ emptyText: <Empty description={t('Записів не знайдено')} /> }}
+            pagination={{
+              current: page,
+              pageSize: 20,
+              total: audit.data?.total,
+              onChange: setPage,
+              showSizeChanger: false,
+              showTotal: (n) => `${t('Усього')}: ${n}`,
+            }}
+            columns={[
+              {
+                title: t('Час'),
+                dataIndex: 'createdAt',
+                width: 150,
+                render: (v: string) => formatDateTime(v),
+              },
+              {
+                title: t('Користувач'),
+                dataIndex: 'userName',
+                width: 180,
+                render: (v: string | null) => v ?? <Tag>{t('система')}</Tag>,
+              },
+              {
+                title: t('Дія'),
+                dataIndex: 'actionCode',
+                width: 220,
+                render: (v: string) => t(auditActions[v] ?? v),
+              },
+              {
+                title: t('Об’єкт'),
+                width: 150,
+                render: (_, r) => `${r.entityName}${r.entityId ? ' #' + r.entityId : ''}`,
+              },
+              { title: t('Деталі'), dataIndex: 'details' },
+              { title: 'IP', dataIndex: 'ipAddress', width: 110 },
+            ]}
+          />
+        </LoadState>
+      </Card>
     </>
   )
 }

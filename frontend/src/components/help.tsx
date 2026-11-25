@@ -18,12 +18,7 @@ export function HelpProvider({ children }: { children: ReactNode }) {
   return (
     <HelpContext.Provider value={open}>
       {children}
-      <Drawer
-        open={!!item}
-        onClose={() => setTopic(null)}
-        title={item ? t(item.title) : ''}
-        width={440}
-      >
+      <Drawer open={!!item} onClose={() => setTopic(null)} title={item ? t(item.title) : ''} width={440}>
         {item && <HelpBody topic={topic!} />}
         <Typography.Paragraph style={{ marginTop: 24 }}>
           <Link to="/help" onClick={() => setTopic(null)}>

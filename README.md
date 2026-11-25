@@ -7,6 +7,12 @@
 
 Потрібно: SQL Server (Express), .NET 8 SDK (є у VS 2022), Node.js 18+.
 
+**Найпростіше:** `reset.bat` (скинути БД до демо-стану) → `start.bat` (відкриє два вікна — бекенд і фронтенд — і браузер на <https://localhost:5173>).
+Один раз на комп'ютері: `dotnet dev-certs https --trust` (довіра до локального HTTPS-сертифіката; `start.bat` сам експортує його для фронтенду в `.certs/`).
+
+Адміністратор входить із **двофакторною автентифікацією**: код приходить «листом» — файлом `.eml` у `backend\CivicBudget.Api\mail-outbox\`
+(у режимі Development сторінка коду показує цей шлях). Сповіщення тригера `TR_Project_StatusChange` теж записуються туди листами.
+
 ### 1. База даних
 
 ```powershell
@@ -29,15 +35,15 @@ sqlcmd -S "np:\\.\pipe\MSSQL$SQLEXPRESS\sql\query" -E -C -i db\CivicBudget_demo.
 
 ### 2. Бекенд
 
-Visual Studio 2022: відкрити `backend/CivicBudget.sln`, стартовий проєкт `CivicBudget.Api`, профіль `http`, F5.
+Visual Studio 2022: відкрити `backend/CivicBudget.sln`, стартовий проєкт `CivicBudget.Api`, профіль `https`, F5.
 Або з консолі:
 
 ```powershell
 cd backend\CivicBudget.Api
-dotnet run --launch-profile http
+dotnet run --launch-profile https
 ```
 
-API: <http://localhost:5080>, **Swagger: <http://localhost:5080/swagger>**.
+API: <https://localhost:7080> (і <http://localhost:5080>), **Swagger: <https://localhost:7080/swagger>**.
 У Swagger: виконати `POST /api/auth/login`, скопіювати `accessToken`, натиснути **Authorize**.
 Рядок підключення — `backend/CivicBudget.Api/appsettings.json` (`Server=.\SQLEXPRESS;...` — для .NET працює без SQL Browser).
 
@@ -49,7 +55,7 @@ npm install
 npm run dev
 ```
 
-Відкрити <http://localhost:5173>. Vite проксує `/api` і `/hubs` на бекенд.
+Відкрити <https://localhost:5173>. Vite проксує `/api`, `/hubs` і `/swagger` на бекенд.
 Інші команди: `npm run build`, `npm run lint` (ESLint), `npm run format` (Prettier).
 
 ## Демо-користувачі

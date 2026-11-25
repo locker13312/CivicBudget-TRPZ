@@ -110,10 +110,7 @@ async function toError(res: Response): Promise<ApiError> {
 }
 
 /** JSON-запит до API. body може бути об'єктом (JSON) або FormData (файли). */
-export async function api<T>(
-  path: string,
-  options: { method?: string; body?: unknown } = {},
-): Promise<T> {
+export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
   const res = await send(path, options, true)
   if (res.status === 204) return undefined as T
   return (await res.json()) as T

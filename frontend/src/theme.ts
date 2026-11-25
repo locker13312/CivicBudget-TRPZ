@@ -10,8 +10,7 @@ export const theme: ThemeConfig = {
     colorError: '#c62828',
     colorLink: '#1f5c99',
     borderRadius: 8,
-    fontFamily:
-      "'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
+    fontFamily: "'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
     fontSize: 14,
     colorBgLayout: '#f3f6fa',
     // світлі фони повідомлень і тегів (автоматично з темних основних кольорів виходять сіруваті)

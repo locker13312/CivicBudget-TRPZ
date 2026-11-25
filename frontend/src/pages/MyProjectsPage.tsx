@@ -43,7 +43,13 @@ export function MyProjectsPage() {
                 title: t('Проєкт'),
                 render: (_, p) => (
                   <>
-                    <Link to={EDITABLE.includes(p.status) ? `/my/projects/${p.projectId}` : `/projects/${p.projectId}`}>
+                    <Link
+                      to={
+                        EDITABLE.includes(p.status)
+                          ? `/my/projects/${p.projectId}`
+                          : `/projects/${p.projectId}`
+                      }
+                    >
                       <b>{p.title}</b>
                     </Link>
                     <div style={{ color: '#8c8c8c', fontSize: 12 }}>
@@ -64,20 +70,38 @@ export function MyProjectsPage() {
                   </>
                 ),
               },
-              { title: t('Вартість'), dataIndex: 'cost', align: 'right', width: 140, render: (v: number) => formatMoney(v) },
-              { title: t('Статус'), dataIndex: 'status', width: 160, render: (s: string) => <StatusTag status={s} /> },
+              {
+                title: t('Вартість'),
+                dataIndex: 'cost',
+                align: 'right',
+                width: 140,
+                render: (v: number) => formatMoney(v),
+              },
+              {
+                title: t('Статус'),
+                dataIndex: 'status',
+                width: 160,
+                render: (s: string) => <StatusTag status={s} />,
+              },
               {
                 title: t('Оновлено'),
                 dataIndex: 'updatedAt',
                 width: 150,
-                render: (v: string) => <Typography.Text type="secondary">{formatDateTime(v)}</Typography.Text>,
+                render: (v: string) => (
+                  <Typography.Text type="secondary">{formatDateTime(v)}</Typography.Text>
+                ),
               },
               {
                 title: '',
                 width: 150,
                 render: (_, p) =>
                   EDITABLE.includes(p.status) ? (
-                    <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => navigate(`/my/projects/${p.projectId}`)}>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => navigate(`/my/projects/${p.projectId}`)}
+                    >
                       {p.status === 'revision' ? t('Доопрацювати') : t('Редагувати')}
                     </Button>
                   ) : (

@@ -1,5 +1,22 @@
 import { CheckCircleFilled, LikeFilled, PlusOutlined } from '@ant-design/icons'
-import { Alert, App, Button, Card, Col, Empty, Flex, Input, Progress, Rate, Row, Select, Space, Statistic, Table, Typography } from 'antd'
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Col,
+  Empty,
+  Flex,
+  Input,
+  Progress,
+  Rate,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Typography,
+} from 'antd'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
@@ -32,7 +49,9 @@ export function VotingPage() {
     try {
       const b = await api<MyBallot>(`/api/voting/${p.projectId}`, { method: 'POST' })
       setData(b)
-      message.success(t('Голос за «{{title}}» враховано. Лишилось: {{n}}', { title: p.title, n: b.remaining }))
+      message.success(
+        t('Голос за «{{title}}» враховано. Лишилось: {{n}}', { title: p.title, n: b.remaining }),
+      )
     } catch (e) {
       setLastError((e as Error).message)
       message.error((e as Error).message, 6)
@@ -60,7 +79,12 @@ export function VotingPage() {
         {data && (
           <>
             {!data.votingOpen && (
-              <Alert type="info" showIcon style={{ marginBottom: 16 }} message={t('Голосування зараз не триває.')} />
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+                message={t('Голосування зараз не триває.')}
+              />
             )}
             {user?.verificationStatus !== 'verified' && (
               <Alert
@@ -75,11 +99,20 @@ export function VotingPage() {
                 type="warning"
                 showIcon
                 style={{ marginBottom: 16 }}
-                message={t('Ви вже проголосували паперовим бюлетенем. Онлайн-голосування в цій кампанії недоступне.')}
+                message={t(
+                  'Ви вже проголосували паперовим бюлетенем. Онлайн-голосування в цій кампанії недоступне.',
+                )}
               />
             )}
             {lastError && (
-              <Alert type="error" showIcon closable style={{ marginBottom: 16 }} message={lastError} onClose={() => setLastError(null)} />
+              <Alert
+                type="error"
+                showIcon
+                closable
+                style={{ marginBottom: 16 }}
+                message={lastError}
+                onClose={() => setLastError(null)}
+              />
             )}
 
             <Row gutter={[24, 24]}>
@@ -112,7 +145,13 @@ export function VotingPage() {
                           <Link to={`/projects/${p.projectId}`} style={{ flex: 1 }}>
                             {p.title}
                           </Link>
-                          <Rate disabled count={data.maxVotesPerProject} value={p.myVotes} character={<LikeFilled />} style={{ fontSize: 14 }} />
+                          <Rate
+                            disabled
+                            count={data.maxVotesPerProject}
+                            value={p.myVotes}
+                            character={<LikeFilled />}
+                            style={{ fontSize: 14 }}
+                          />
                         </Flex>
                       ))}
                     </Space>
@@ -159,7 +198,13 @@ export function VotingPage() {
                           </>
                         ),
                       },
-                      { title: t('Вартість'), dataIndex: 'cost', align: 'right', width: 120, render: (v: number) => formatMoney(v) },
+                      {
+                        title: t('Вартість'),
+                        dataIndex: 'cost',
+                        align: 'right',
+                        width: 120,
+                        render: (v: number) => formatMoney(v),
+                      },
                       { title: t('Голоси'), dataIndex: 'totalVotes', align: 'right', width: 80 },
                       {
                         title: t('Мої'),

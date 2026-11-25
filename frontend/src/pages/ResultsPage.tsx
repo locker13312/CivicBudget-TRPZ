@@ -16,7 +16,10 @@ export function ResultsPage() {
   const { t } = useTranslation()
   const [campaignId, setCampaignId] = useState<number | undefined>()
   const campaigns = useLoad(() => api<Campaign[]>('/api/campaigns'), [])
-  const res = useLoad(() => api<ResultsResponse>(`/api/campaigns/results${query({ campaignId })}`), [campaignId])
+  const res = useLoad(
+    () => api<ResultsResponse>(`/api/campaigns/results${query({ campaignId })}`),
+    [campaignId],
+  )
 
   useVotesChanged(() => void res.reload())
 
@@ -39,8 +42,14 @@ export function ResultsPage() {
               options={(campaigns.data ?? []).map((x) => ({ value: x.campaignId, label: x.name }))}
               aria-label={t('Кампанія')}
             />
-            <ExportButton path={`/api/reports/results${query({ campaignId: c?.campaignId })}`} label="Результати" />
-            <ExportButton path={`/api/reports/winners${query({ campaignId: c?.campaignId })}`} label="Переможці" />
+            <ExportButton
+              path={`/api/reports/results${query({ campaignId: c?.campaignId })}`}
+              label="Результати"
+            />
+            <ExportButton
+              path={`/api/reports/winners${query({ campaignId: c?.campaignId })}`}
+              label="Переможці"
+            />
           </>
         }
       />
@@ -61,7 +70,9 @@ export function ResultsPage() {
             )}
             {[...groups.entries()].map(([category, rows]) => {
               const limit = c.categories.find((x) => x.categoryName === category)?.budgetLimit ?? 0
-              const sorted = [...rows].sort((a, b) => b.totalVotes - a.totalVotes || b.voterCount - a.voterCount)
+              const sorted = [...rows].sort(
+                (a, b) => b.totalVotes - a.totalVotes || b.voterCount - a.voterCount,
+              )
               const max = Math.max(1, ...sorted.map((r) => r.totalVotes))
               return (
                 <Card
@@ -85,7 +96,8 @@ export function ResultsPage() {
                       {
                         title: '#',
                         width: 48,
-                        render: (_, r, i) => (WINNERS.includes(r.status) ? <TrophyFilled style={{ color: '#d4a017' }} /> : i + 1),
+                        render: (_, r, i) =>
+                          WINNERS.includes(r.status) ? <TrophyFilled style={{ color: '#d4a017' }} /> : i + 1,
                       },
                       {
                         title: t('Проєкт'),
@@ -98,20 +110,36 @@ export function ResultsPage() {
                           </>
                         ),
                       },
-                      { title: t('Вартість'), dataIndex: 'cost', align: 'right', width: 130, render: (v: number) => formatMoney(v) },
+                      {
+                        title: t('Вартість'),
+                        dataIndex: 'cost',
+                        align: 'right',
+                        width: 130,
+                        render: (v: number) => formatMoney(v),
+                      },
                       {
                         title: t('Голоси'),
                         width: 220,
                         render: (_, r) => (
                           <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                            <Progress percent={Math.round((r.totalVotes / max) * 100)} format={() => r.totalVotes} size="small" />
+                            <Progress
+                              percent={Math.round((r.totalVotes / max) * 100)}
+                              format={() => r.totalVotes}
+                              size="small"
+                            />
                             <span style={{ fontSize: 12, color: '#8c8c8c' }}>
-                              {t('онлайн')} {r.onlineVotes} · {t('папір')} {r.paperVotes} · {t('виборців')} {r.voterCount}
+                              {t('онлайн')} {r.onlineVotes} · {t('папір')} {r.paperVotes} · {t('виборців')}{' '}
+                              {r.voterCount}
                             </span>
                           </Space>
                         ),
                       },
-                      { title: t('Статус'), dataIndex: 'status', width: 140, render: (s: string) => <StatusTag status={s} /> },
+                      {
+                        title: t('Статус'),
+                        dataIndex: 'status',
+                        width: 140,
+                        render: (s: string) => <StatusTag status={s} />,
+                      },
                     ]}
                   />
                 </Card>

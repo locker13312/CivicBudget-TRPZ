@@ -74,6 +74,18 @@ export const auditActions: Record<string, string> = {
   user_roles: 'Зміна ролей',
   user_block: 'Блокування',
   user_unblock: 'Розблокування',
+  user_autoblock: 'Автоблокування (5 невдалих входів)',
+  user_2fa_on: 'Увімкнено 2FA',
+  user_2fa_off: 'Вимкнено 2FA',
+  login_2fa: 'Вхід (код 2FA)',
+  login_2fa_sent: 'Надіслано код 2FA',
+  register: 'Реєстрація',
+  pd_view: 'Перегляд персональних даних',
+  stage_update: 'Оновлення етапу реалізації',
+  report_submit: 'Звіт виконавця',
+  report_accept: 'Звіт прийнято',
+  report_reject: 'Звіт повернуто',
+  implementation_status: 'Статус реалізації',
 }
 
 const money = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 2 })
@@ -94,3 +106,22 @@ export function plural(n: number, one: string, few: string, many: string) {
 }
 
 export const votesWord = (n: number) => `${n} ${plural(n, 'голос', 'голоси', 'голосів')}`
+
+export const implementationStatus: Record<string, string> = {
+  planned: 'Заплановано',
+  in_progress: 'Виконується',
+  suspended: 'Призупинено',
+  completed: 'Завершено',
+}
+
+export const stageStatus: Record<string, string> = {
+  planned: 'Заплановано',
+  in_progress: 'Виконується',
+  done: 'Виконано',
+}
+
+export const reportStatus: Record<string, string> = {
+  submitted: 'На розгляді',
+  accepted: 'Прийнято',
+  rejected: 'Повернуто',
+}

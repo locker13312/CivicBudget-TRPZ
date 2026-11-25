@@ -1,4 +1,10 @@
-import { DownloadOutlined, FileExcelOutlined, FilePdfOutlined, FileTextOutlined, QuestionCircleOutlined } from '@ant-design/icons'
+import {
+  DownloadOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  QuestionCircleOutlined,
+} from '@ant-design/icons'
 import { App, Alert, Button, Dropdown, Flex, Result, Skeleton, Space, Tag, Tooltip, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -66,7 +72,15 @@ export function CampaignTag({ status }: { status: string }) {
 }
 
 /** Кнопка «Експорт» з вибором формату: PDF, XLSX, CSV. */
-export function ExportButton({ path, label = 'Експорт', size }: { path: string; label?: string; size?: 'small' | 'middle' }) {
+export function ExportButton({
+  path,
+  label = 'Експорт',
+  size,
+}: {
+  path: string
+  label?: string
+  size?: 'small' | 'middle'
+}) {
   const { t } = useTranslation()
   const { message } = App.useApp()
   const [busy, setBusy] = useState(false)
@@ -100,6 +114,7 @@ export function ExportButton({ path, label = 'Експорт', size }: { path: s
 }
 
 /** Завантаження даних з API: data, loading, error, reload. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useLoad<T>(load: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState<ApiError | null>(null)
@@ -125,7 +140,15 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]) {
 }
 
 /** Стан завантаження / помилки для сторінки. */
-export function LoadState({ loading, error, children }: { loading: boolean; error: ApiError | null; children: ReactNode }) {
+export function LoadState({
+  loading,
+  error,
+  children,
+}: {
+  loading: boolean
+  error: ApiError | null
+  children: ReactNode
+}) {
   const { t } = useTranslation()
   if (error)
     return (

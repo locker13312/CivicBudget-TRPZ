@@ -1,5 +1,20 @@
 import { BankOutlined, CheckCircleOutlined, IdcardOutlined } from '@ant-design/icons'
-import { Alert, App, Button, Card, Col, Descriptions, Form, Input, List, Modal, Row, Steps, Tag, Typography } from 'antd'
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Form,
+  Input,
+  List,
+  Modal,
+  Row,
+  Steps,
+  Tag,
+  Typography,
+} from 'antd'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -56,7 +71,9 @@ export function RegisterPage() {
         <Card>
           <PageTitle
             title={t('Реєстрація')}
-            subtitle={t('Підтвердіть особу через BankID або Дія.Підпис — так система перевірить, що ви мешканець міста.')}
+            subtitle={t(
+              'Підтвердіть особу через BankID або Дія.Підпис — так система перевірить, що ви мешканець міста.',
+            )}
             help="login"
           />
           <Steps
@@ -75,7 +92,13 @@ export function RegisterPage() {
                 </Button>
               </Col>
               <Col xs={24} sm={12}>
-                <Button block size="large" icon={<IdcardOutlined />} onClick={() => void start('diia')} style={{ marginTop: 0 }}>
+                <Button
+                  block
+                  size="large"
+                  icon={<IdcardOutlined />}
+                  onClick={() => void start('diia')}
+                  style={{ marginTop: 0 }}
+                >
                   Дія.Підпис ({t('демо')})
                 </Button>
               </Col>
@@ -93,8 +116,14 @@ export function RegisterPage() {
                   </span>
                 }
                 items={[
-                  { label: t('ПІБ'), children: `${person.lastName} ${person.firstName} ${person.middleName}` },
-                  { label: t('Дата народження'), children: `${formatDate(person.birthDate)} (${age(person.birthDate)} ${t('р.')})` },
+                  {
+                    label: t('ПІБ'),
+                    children: `${person.lastName} ${person.firstName} ${person.middleName}`,
+                  },
+                  {
+                    label: t('Дата народження'),
+                    children: `${formatDate(person.birthDate)} (${age(person.birthDate)} ${t('р.')})`,
+                  },
                   { label: t('Адреса реєстрації'), children: person.regAddress },
                   { label: t('Район'), children: person.districtName },
                 ]}
@@ -143,7 +172,9 @@ export function RegisterPage() {
         <Alert
           type="info"
           showIcon
-          message={t('Імітація: «банк» повертає дані тестової особи. Серед них є мешканець іншого міста й 13-річна особа — для показу відмов.')}
+          message={t(
+            'Імітація: «банк» повертає дані тестової особи. Серед них є мешканець іншого міста й 13-річна особа — для показу відмов.',
+          )}
           style={{ marginBottom: 12 }}
         />
         <List
