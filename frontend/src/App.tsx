@@ -56,16 +56,16 @@ export default function App() {
               <Route path="register" element={<RegisterPage />} />
 
               {/* будь-який користувач після входу */}
-              <Route path="notifications" element={guard(<Legacy><NotificationsPage /></Legacy>)} />
+              <Route path="notifications" element={guard(<NotificationsPage />)} />
 
               {/* мешканець / автор */}
               <Route path="voting" element={guard(<Legacy><VotingPage /></Legacy>, ['resident'])} />
-              <Route path="my/projects" element={guard(<Legacy><MyProjectsPage /></Legacy>, ['resident'])} />
-              <Route path="my/projects/:id" element={guard(<Legacy><ProjectFormPage /></Legacy>, ['resident'])} />
+              <Route path="my/projects" element={guard(<MyProjectsPage />, ['resident'])} />
+              <Route path="my/projects/:id" element={guard(<ProjectFormPage />, ['resident'])} />
 
               {/* працівники */}
-              <Route path="moderation" element={guard(<Legacy><ModerationPage /></Legacy>, ['moderator'])} />
-              <Route path="expertise" element={guard(<Legacy><ExpertisePage /></Legacy>, ['expert'])} />
+              <Route path="moderation" element={guard(<ModerationPage />, ['moderator'])} />
+              <Route path="expertise" element={guard(<ExpertisePage />, ['expert'])} />
               <Route path="operator" element={guard(<Legacy><OperatorPage /></Legacy>, ['operator'])} />
 
               {/* адміністратор */}

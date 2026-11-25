@@ -14,6 +14,15 @@ export const theme: ThemeConfig = {
       "'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
     fontSize: 14,
     colorBgLayout: '#f3f6fa',
+    // світлі фони повідомлень і тегів (автоматично з темних основних кольорів виходять сіруваті)
+    colorInfoBg: '#eaf2fb',
+    colorInfoBorder: '#b6d0ee',
+    colorSuccessBg: '#edf7ee',
+    colorSuccessBorder: '#b7dfba',
+    colorWarningBg: '#fff8e6',
+    colorWarningBorder: '#f5d78e',
+    colorErrorBg: '#fdeeee',
+    colorErrorBorder: '#f3b9b9',
   },
   components: {
     Layout: { headerBg: '#ffffff', headerHeight: 64, headerPadding: '0 24px', footerBg: '#eef2f7' },
