@@ -1173,7 +1173,7 @@ export function AdminAuditPage() {
           />
           <Select
             allowClear
-            placeholder={t('Дія')}
+            placeholder={t('Дія користувача')}
             style={{ width: 260 }}
             onChange={(v) => set({ action: v })}
             options={(values.data?.actions ?? []).map((a) => ({ value: a, label: t(auditActions[a] ?? a) }))}

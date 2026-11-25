@@ -219,7 +219,7 @@ export function LoginPage() {
                 <span style={{ fontSize: 13 }}>{a.email}</span>
                 <span>
                   <Tag>{t(a.role)}</Tag>
-                  {a.note && <Tag color="gold">{a.note}</Tag>}
+                  {a.note && <Tag color="gold">{t(a.note)}</Tag>}
                 </span>
               </List.Item>
             )}

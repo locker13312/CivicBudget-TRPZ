@@ -270,7 +270,7 @@ export function AppLayout() {
       <Layout.Footer style={{ textAlign: 'center' }}>
         <Flex justify="center" gap={16} wrap>
           <span>
-            {t('ІС «Громадський бюджет»')} · {t('курсова робота з ТРПЗ')}, КПІ ім. Ігоря Сікорського, 2026
+            {t('ІС «Громадський бюджет»')} · {t('курсова робота з ТРПЗ')}, {t('КПІ ім. Ігоря Сікорського')}, 2026
           </span>
           <Link to="/open-data">{t('Відкриті дані')}</Link>
           <Link to="/help">{t('Довідка')}</Link>

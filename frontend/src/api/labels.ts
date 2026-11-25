@@ -1,3 +1,5 @@
+import i18n from '../i18n'
+
 // Українські назви статусів і кодів, форматування сум і дат
 
 export const projectStatus: Record<string, string> = {
@@ -88,14 +90,17 @@ export const auditActions: Record<string, string> = {
   implementation_status: 'Статус реалізації',
 }
 
-const money = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 2 })
-export const formatMoney = (v: number) => `${money.format(v)} грн`
+const isEn = () => i18n.language === 'en'
+const locale = () => (isEn() ? 'en-GB' : 'uk-UA')
+
+export const formatMoney = (v: number) =>
+  `${new Intl.NumberFormat(locale(), { maximumFractionDigits: 2 }).format(v)} ${isEn() ? 'UAH' : 'грн'}`
 
 export const formatDate = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleDateString('uk-UA') : '—'
+  s ? new Date(s).toLocaleDateString(locale()) : '—'
 
 export const formatDateTime = (s: string | null | undefined) =>
-  s ? new Date(s).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' }) : '—'
+  s ? new Date(s).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' }) : '—'
 
 export function plural(n: number, one: string, few: string, many: string) {
   const m10 = n % 10

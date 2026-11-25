@@ -38,7 +38,7 @@ export function OpenDataPage() {
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
-              message={`${t('Розпорядник')}: ${data.publisher}. ${t('Ліцензія')}: ${data.license}.`}
+              message={`${t('Розпорядник')}: ${t(data.publisher)}. ${t('Ліцензія')}: ${data.license}.`}
             />
             <Card style={{ marginBottom: 16 }}>
               <Space wrap>

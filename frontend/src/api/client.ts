@@ -1,3 +1,4 @@
+import i18n from '../i18n'
 import type { AuthResponse } from './types'
 
 // HTTP-клієнт: додає JWT, при 401 один раз оновлює токени через refresh-токен,
@@ -82,12 +83,12 @@ async function send(
           : undefined,
     })
   } catch {
-    throw new ApiError('Сервер недоступний. Перевірте, що бекенд запущено.', 0)
+    throw new ApiError(i18n.t('Сервер недоступний. Перевірте, що бекенд запущено.'), 0)
   }
 
   if (res.status === 401 && auth && retry) {
     if (await tryRefresh()) return send(path, options, false)
-    throw new ApiError('Сесія завершилась. Увійдіть знову.', 401)
+    throw new ApiError(i18n.t('Сесія завершилась. Увійдіть знову.'), 401)
   }
   if (!res.ok) throw await toError(res)
   return res
@@ -106,7 +107,8 @@ async function toError(res: Response): Promise<ApiError> {
   }
   if (res.status === 401) message = 'Потрібно увійти в систему.'
   if (res.status === 403 && message.startsWith('Сталася')) message = 'Недостатньо прав для цієї дії.'
-  return new ApiError(message, res.status, code)
+  // тексти помилок приходять з бекенду українською; в англійському інтерфейсі — переклад зі словника
+  return new ApiError(i18n.t(message), res.status, code)
 }
 
 /** JSON-запит до API. body може бути об'єктом (JSON) або FormData (файли). */
