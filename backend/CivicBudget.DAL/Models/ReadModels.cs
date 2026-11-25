@@ -27,7 +27,7 @@ public record ProjectListItem(
     string Status, byte CategoryId, string CategoryName, byte DistrictId, string DistrictName,
     decimal Cost, int TotalVotes, string AuthorName, DateTime UpdatedAt,
     string? LastDecision, string? LastComment,
-    int? ModeratorId = null, string? ModeratorName = null, int? DuplicateOfId = null);
+    int? ModeratorId = null, string? ModeratorName = null, int? DuplicateOfId = null, int? PhotoId = null);
 
 public record BudgetItemModel(int BudgetItemId, string Name, string Unit, decimal Quantity, decimal UnitPrice, decimal Amount);
 

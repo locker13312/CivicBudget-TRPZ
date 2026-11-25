@@ -1,144 +1,153 @@
-import { Link } from 'react-router-dom'
-import { campaignStatusOrder, formatDate, formatMoney, votesWord } from '../api/labels'
+import { AppstoreOutlined, CheckSquareOutlined, FileAddOutlined, TrophyOutlined } from '@ant-design/icons'
+import { Button, Card, Col, Empty, Flex, Row, Space, Statistic, Steps, Table, Typography } from 'antd'
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../api/client'
+import { campaignStatusOrder, formatDate, formatMoney } from '../api/labels'
 import type { Campaign, PagedResult, ProjectListItem } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
-import { Alert, CampaignBadge, Loading, StatusBadge, useApi } from '../components/ui'
+import { CampaignTag, LoadState, PageTitle, useLoad } from '../components/common'
+import { ProjectCard } from '../components/ProjectCard'
 
-const stages = [
-  { key: 'submission', title: 'Подання проєктів', from: 'submissionStart', to: 'submissionEnd' },
-  { key: 'review', title: 'Розгляд і експертиза', from: 'submissionEnd', to: 'reviewEnd' },
-  { key: 'voting', title: 'Голосування', from: 'votingStart', to: 'votingEnd' },
-  { key: 'counting', title: 'Підрахунок і переможці', from: 'votingEnd', to: 'resultsDate' },
-  { key: 'implementation', title: 'Реалізація', from: 'resultsDate', to: null },
-] as const
+/** Етапи кампанії зі строками — для шкали на головній. */
+function stages(c: Campaign) {
+  return [
+    { key: 'submission', title: 'Подання проєктів', period: `${formatDate(c.submissionStart)} — ${formatDate(c.submissionEnd)}` },
+    { key: 'review', title: 'Розгляд проєктів', period: `${formatDate(c.submissionEnd)} — ${formatDate(c.reviewEnd)}` },
+    { key: 'voting', title: 'Голосування', period: `${formatDate(c.votingStart)} — ${formatDate(c.votingEnd)}` },
+    { key: 'counting', title: 'Підрахунок голосів', period: `${formatDate(c.votingEnd)} — ${formatDate(c.resultsDate)}` },
+    { key: 'implementation', title: 'Реалізація', period: `${formatDate(c.resultsDate)} →` },
+  ]
+}
 
 export function HomePage() {
-  const { hasRole } = useAuth()
-  const { data: campaign, error, loading } = useApi<Campaign>('/api/campaigns/current')
-  const top = useApi<PagedResult<ProjectListItem>>(
-    campaign ? `/api/projects?campaignId=${campaign.campaignId}&sort=votes&pageSize=3` : null,
-    [campaign?.campaignId],
+  const { data, loading, error } = useLoad(async () => {
+    const campaign = await api<Campaign>('/api/campaigns/current')
+    const top = await api<PagedResult<ProjectListItem>>(
+      `/api/projects?campaignId=${campaign.campaignId}&sort=votes&pageSize=3`,
+    )
+    return { campaign, top }
+  }, [])
+
+  return (
+    <LoadState loading={loading} error={error}>
+      {data && <Home campaign={data.campaign} top={data.top} />}
+    </LoadState>
   )
+}
 
-  if (loading) return <Loading />
-  if (error || !campaign) return <Alert>{error ?? 'Активної кампанії немає.'}</Alert>
-
-  const currentIndex = campaignStatusOrder.indexOf(campaign.status)
+function Home({ campaign: c, top }: { campaign: Campaign; top: PagedResult<ProjectListItem> }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const idx = campaignStatusOrder.indexOf(c.status)
+  const list = stages(c)
+  const current = Math.max(0, list.findIndex((s) => campaignStatusOrder.indexOf(s.key) >= idx))
+  const maxVotes = Math.max(1, ...top.items.map((p) => p.totalVotes))
 
   return (
     <>
-      <section className="hero">
-        <div>
-          <CampaignBadge status={campaign.status} />
-          <h1>{campaign.name}</h1>
-          <p>
-            Мешканці пропонують ідеї для свого міста, а потім голосують за найкращі. Переможці реалізуються
-            коштом міського бюджету.
-          </p>
-          <div className="actions">
-            <Link to="/projects" className="btn btn-primary">
-              Переглянути проєкти
-            </Link>
-            {campaign.status === 'voting' && (
-              <Link to={hasRole('resident') ? '/voting' : '/login'} className="btn btn-accent">
-                Голосувати
-              </Link>
+      <Card
+        style={{ marginBottom: 24, background: 'linear-gradient(120deg, #1f5c99 0%, #2f78c2 60%, #4a90d9 100%)', border: 'none' }}
+        styles={{ body: { padding: 28 } }}
+      >
+        <Flex justify="space-between" wrap gap={16} align="center">
+          <div style={{ color: '#fff', maxWidth: 680 }}>
+            <Space style={{ marginBottom: 8 }}>
+              <CampaignTag status={c.status} />
+            </Space>
+            <Typography.Title style={{ color: '#fff', margin: 0 }}>{c.name}</Typography.Title>
+            <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.9)', fontSize: 16, margin: '8px 0 0' }}>
+              {t('Мешканці пропонують проєкти для свого міста й голосують за найкращі. Переможці реалізуються коштом міського бюджету.')}
+            </Typography.Paragraph>
+          </div>
+          <Space wrap>
+            {c.status === 'voting' && (
+              <Button size="large" icon={<CheckSquareOutlined />} onClick={() => navigate('/voting')}>
+                {t('Голосувати')}
+              </Button>
             )}
-            <Link to="/results" className="btn btn-light">
-              Результати
-            </Link>
-          </div>
-        </div>
-        <div className="hero-stats">
-          <div>
-            <b>{formatMoney(campaign.totalBudget)}</b>
-            <span>загальний бюджет</span>
-          </div>
-          <div>
-            <b>
-              {formatMoney(campaign.minProjectCost)} – {formatMoney(campaign.maxProjectCost)}
-            </b>
-            <span>вартість одного проєкту</span>
-          </div>
-          <div>
-            <b>{votesWord(campaign.votesPerVoter)}</b>
-            <span>у кожного виборця, до {campaign.maxVotesPerProject} за проєкт</span>
-          </div>
-          <div>
-            <b>з {campaign.minVoterAge} років</b>
-            <span>можна голосувати</span>
-          </div>
-        </div>
-      </section>
+            {c.status === 'submission' && (
+              <Button size="large" icon={<FileAddOutlined />} onClick={() => navigate('/my/projects/new')}>
+                {t('Подати проєкт')}
+              </Button>
+            )}
+            <Button size="large" ghost icon={<AppstoreOutlined />} onClick={() => navigate('/projects')}>
+              {t('Каталог проєктів')}
+            </Button>
+          </Space>
+        </Flex>
+      </Card>
 
-      <section className="card">
-        <h2>Етапи кампанії</h2>
-        <ol className="timeline">
-          {stages.map((s) => {
-            const idx = campaignStatusOrder.indexOf(s.key)
-            const state = idx < currentIndex ? 'done' : idx === currentIndex ? 'active' : 'future'
-            return (
-              <li key={s.key} className={`stage stage-${state}`}>
-                <span className="stage-dot">{state === 'done' ? '✓' : idx}</span>
-                <b>{s.title}</b>
-                <small>
-                  {formatDate(campaign[s.from])}
-                  {s.to ? ` – ${formatDate(campaign[s.to])}` : ''}
-                </small>
-                {state === 'active' && <em>триває зараз</em>}
-              </li>
-            )
-          })}
-        </ol>
-      </section>
+      <PageTitle title={t('Етапи кампанії')} help="home" />
+      <Card style={{ marginBottom: 24 }}>
+        <Steps
+          current={c.status === 'closed' ? list.length : current}
+          responsive
+          items={list.map((s) => ({ title: t(s.title), description: s.period }))}
+        />
+      </Card>
 
-      <div className="grid-2">
-        <section className="card">
-          <h2>Ліміти категорій</h2>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Категорія</th>
-                <th className="num">Ліміт</th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaign.categories.map((c) => (
-                <tr key={c.categoryId}>
-                  <td>{c.categoryName}</td>
-                  <td className="num">{formatMoney(c.budgetLimit)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-        <section className="card">
-          <h2>Лідери голосування</h2>
-          {top.data?.items.length ? (
-            <ul className="list">
-              {top.data.items.map((p, i) => (
-                <li key={p.projectId}>
-                  <span className="place">{i + 1}</span>
-                  <div>
-                    <Link to={`/projects/${p.projectId}`}>{p.title}</Link>
-                    <small className="muted">
-                      {p.categoryName} · {p.districtName} · {formatMoney(p.cost)}
-                    </small>
-                  </div>
-                  <b className="votes">{votesWord(p.totalVotes)}</b>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">Опублікованих проєктів ще немає.</p>
-          )}
-          {top.data?.items[0] && (
-            <p className="muted small">
-              Статус лідера: <StatusBadge status={top.data.items[0].status} />
-            </p>
-          )}
-        </section>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} md={6}>
+          <Card>
+            <Statistic title={t('Бюджет кампанії')} value={c.totalBudget} suffix={t('грн')} groupSeparator=" " />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card>
+            <Statistic title={t('Вартість проєкту')} value={`${(c.minProjectCost / 1000).toFixed(0)}–${(c.maxProjectCost / 1000).toFixed(0)}`} suffix={t('тис. грн')} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card>
+            <Statistic title={t('Голосів у мешканця')} value={c.votesPerVoter} suffix={`/ ${t('до')} ${c.maxVotesPerProject} ${t('за проєкт')}`} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card>
+            <Statistic title={t('Голосувати можна з')} value={c.minVoterAge} suffix={t('років')} />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={9}>
+          <Card title={t('Ліміти категорій')} style={{ height: '100%' }}>
+            <Table
+              size="small"
+              pagination={false}
+              rowKey="categoryId"
+              dataSource={c.categories}
+              columns={[
+                { title: t('Категорія'), dataIndex: 'categoryName', render: (v: string) => t(v) },
+                { title: t('Ліміт'), dataIndex: 'budgetLimit', align: 'right', render: (v: number) => formatMoney(v) },
+              ]}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} lg={15}>
+          <Card
+            title={t('Лідери голосування')}
+            extra={
+              <Button type="link" icon={<TrophyOutlined />} onClick={() => navigate('/results')}>
+                {t('Усі результати')}
+              </Button>
+            }
+            style={{ height: '100%' }}
+          >
+            {top.items.length === 0 ? (
+              <Empty description={t('Проєктів ще немає')} />
+            ) : (
+              <Row gutter={[16, 16]}>
+                {top.items.map((p) => (
+                  <Col xs={24} sm={8} key={p.projectId}>
+                    <ProjectCard p={p} maxVotes={maxVotes} />
+                  </Col>
+                ))}
+              </Row>
+            )}
+          </Card>
+        </Col>
+      </Row>
     </>
   )
 }

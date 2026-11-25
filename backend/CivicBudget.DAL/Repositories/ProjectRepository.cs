@@ -42,7 +42,10 @@ public class ProjectRepository : IProjectRepository
             x.P.Reviews.OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.ReviewId).Select(r => r.Comment).FirstOrDefault(),
             x.P.ModeratorId,
             x.P.Moderator != null ? x.P.Moderator.LastName + " " + x.P.Moderator.FirstName : null,
-            x.P.DuplicateOfId));
+            x.P.DuplicateOfId,
+            // перше фото проєкту — для обкладинки картки в каталозі
+            x.P.Attachments.Where(a => a.MimeType.StartsWith("image/")).OrderBy(a => a.AttachmentId)
+                .Select(a => (int?)a.AttachmentId).FirstOrDefault()));
 
     /// <summary>
     /// Каталог: фільтри методами LINQ з лямбдами (Where, OrderBy, ThenBy),

@@ -1,159 +1,231 @@
-import { useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { BankOutlined, LockOutlined, MailOutlined, SafetyOutlined } from '@ant-design/icons'
+import { Alert, App, Button, Card, Col, Divider, Form, Input, List, Modal, Row, Tag, Typography } from 'antd'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { roleNames, verificationNames } from '../api/labels'
+import { roleNames } from '../api/labels'
 import type { UserInfo, UserRow } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { Alert, Field } from '../components/ui'
+import { PageTitle } from '../components/common'
 
+const DEMO_PASSWORD = 'Demo123!'
+
+// Демо-облікові записи (db/CivicBudget_demo.sql) — клік підставляє логін і пароль
 const demoAccounts = [
-  ['author@civicbudget.test', 'Автор (мешканець)'],
-  ['resident@civicbudget.test', 'Мешканець'],
-  ['moderator@civicbudget.test', 'Модератор'],
-  ['expert@civicbudget.test', 'Експерт'],
-  ['operator@civicbudget.test', 'Оператор'],
-  ['admin@civicbudget.test', 'Адміністратор'],
-  ['teen@civicbudget.test', 'Мешканець, 15 років'],
-  ['unverified@civicbudget.test', 'Неверифікований'],
+  { email: 'admin@civicbudget.test', role: 'Адміністратор', note: 'з 2FA' },
+  { email: 'moderator@civicbudget.test', role: 'Модератор' },
+  { email: 'expert@civicbudget.test', role: 'Експерт' },
+  { email: 'operator@civicbudget.test', role: 'Оператор' },
+  { email: 'executor@civicbudget.test', role: 'Виконавець' },
+  { email: 'author@civicbudget.test', role: 'Автор' },
+  { email: 'resident@civicbudget.test', role: 'Мешканець' },
+  { email: 'teen@civicbudget.test', role: '15 років' },
 ]
 
-/** Стартова сторінка для кожної ролі після входу. */
-function homeFor(user: UserInfo) {
-  if (user.roles.includes('admin')) return '/admin/campaign'
-  if (user.roles.includes('moderator')) return '/moderation'
-  if (user.roles.includes('expert')) return '/expertise'
-  if (user.roles.includes('operator')) return '/operator'
-  return '/'
+/** Куди перейти після входу — головна сторінка ролі. */
+export function homeFor(user: UserInfo): string {
+  const r = user.roles
+  if (r.includes('admin')) return '/admin/campaign'
+  if (r.includes('moderator')) return '/moderation'
+  if (r.includes('expert')) return '/expertise'
+  if (r.includes('operator')) return '/operator'
+  if (r.includes('executor')) return '/executor'
+  return '/voting'
 }
 
 export function LoginPage() {
-  const { login, loginBankId } = useAuth()
+  const { t } = useTranslation()
+  const { message } = App.useApp()
+  const { login, verifyCode, loginBankId } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as { from?: string } | null)?.from
-
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [form] = Form.useForm<{ email: string; password: string }>()
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [challenge, setChallenge] = useState<{ id: string; message: string; devHint: string | null } | null>(null)
+  const [code, setCode] = useState('')
+  const [bankOpen, setBankOpen] = useState(false)
   const [bankUsers, setBankUsers] = useState<UserRow[] | null>(null)
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
+  const done = (user: UserInfo) => {
+    message.success(t('Вітаємо, {{name}}!', { name: user.fullName }))
+    navigate(from ?? homeFor(user), { replace: true })
+  }
+
+  const submit = async (v: { email: string; password: string }) => {
     setBusy(true)
     setError(null)
     try {
-      const user = await login(email, password)
-      navigate(from ?? homeFor(user))
-    } catch (err) {
-      setError((err as Error).message)
+      const step = await login(v.email, v.password)
+      if (step.kind === 'done') done(step.user)
+      else {
+        setChallenge({ id: step.challengeId, message: step.message, devHint: step.devHint })
+        setCode('')
+      }
+    } catch (e) {
+      setError((e as Error).message)
     } finally {
       setBusy(false)
     }
   }
 
-  async function openBankId() {
+  const confirm = async (value = code) => {
+    if (!challenge || value.length !== 6) return
+    setBusy(true)
     setError(null)
     try {
-      setBankUsers(await api<UserRow[]>('/api/auth/bankid-demo/users'))
-    } catch (err) {
-      setError((err as Error).message)
+      done(await verifyCode(challenge.id, value))
+    } catch (e) {
+      setError((e as Error).message)
+      setCode('')
+      if ((e as Error).message.includes('Увійдіть ще раз')) setChallenge(null)
+    } finally {
+      setBusy(false)
     }
   }
 
-  async function bankIdLogin(userId: number) {
+  const openBank = async () => {
+    setBankOpen(true)
+    if (!bankUsers) setBankUsers(await api<UserRow[]>('/api/auth/bankid-demo/users'))
+  }
+
+  const bankLogin = async (userId: number) => {
     try {
-      const user = await loginBankId(userId)
-      navigate(from ?? homeFor(user))
-    } catch (err) {
-      setError((err as Error).message)
-      setBankUsers(null)
+      done(await loginBankId(userId))
+    } catch (e) {
+      message.error((e as Error).message)
     }
   }
 
   return (
-    <div className="login-wrap">
-      <form className="card login" onSubmit={submit}>
-        <h1>Вхід до системи</h1>
-        <p className="muted">Увійдіть, щоб подавати проєкти, голосувати та отримувати сповіщення.</p>
-        <Alert>{error}</Alert>
-        <Field label="Електронна пошта">
-          <input
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </Field>
-        <Field label="Пароль">
-          <input
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </Field>
-        <button className="btn btn-primary btn-block" disabled={busy}>
-          Увійти
-        </button>
-        <div className="or">або</div>
-        <button type="button" className="btn btn-bankid btn-block" onClick={openBankId}>
-          🏦 Увійти через BankID (демо)
-        </button>
-      </form>
+    <Row justify="center" gutter={[24, 24]}>
+      <Col xs={24} md={14} lg={10}>
+        <Card>
+          {!challenge ? (
+            <>
+              <PageTitle title={t('Вхід')} subtitle={t('Увійдіть, щоб подавати проєкти й голосувати')} help="login" />
+              {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+              <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
+                <Form.Item
+                  name="email"
+                  label="E-mail"
+                  rules={[{ required: true, message: t('Вкажіть e-mail.') }]}
+                  tooltip={t('E-mail, вказаний під час реєстрації')}
+                >
+                  <Input prefix={<MailOutlined />} autoComplete="username" size="large" />
+                </Form.Item>
+                <Form.Item name="password" label={t('Пароль')} rules={[{ required: true, message: t('Вкажіть пароль.') }]}>
+                  <Input.Password prefix={<LockOutlined />} autoComplete="current-password" size="large" />
+                </Form.Item>
+                <Button type="primary" htmlType="submit" block size="large" loading={busy}>
+                  {t('Увійти')}
+                </Button>
+              </Form>
+              <Divider plain>{t('або')}</Divider>
+              <Button block size="large" icon={<BankOutlined />} onClick={() => void openBank()}>
+                {t('Увійти через BankID (демо)')}
+              </Button>
+              <Typography.Paragraph style={{ marginTop: 16, textAlign: 'center' }}>
+                {t('Ще немає облікового запису?')} <Link to="/register">{t('Зареєструватися')}</Link>
+              </Typography.Paragraph>
+            </>
+          ) : (
+            <>
+              <PageTitle title={t('Підтвердження входу')} help="login" />
+              <Alert type="info" showIcon icon={<SafetyOutlined />} message={t(challenge.message)} style={{ marginBottom: 12 }} />
+              {challenge.devHint && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message={t('Демо-режим: справжньої пошти немає')}
+                  description={
+                    <>
+                      {t('Лист із кодом записано файлом .eml у папку')}{' '}
+                      <Typography.Text code copyable style={{ wordBreak: 'break-all' }}>
+                        {challenge.devHint.replace(/^.*папку\s+/, '')}
+                      </Typography.Text>
+                      . {t('Відкрийте найновіший файл блокнотом.')}
+                    </>
+                  }
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+              {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+              <Typography.Paragraph>{t('Введіть 6-значний код із листа:')}</Typography.Paragraph>
+              <Input.OTP
+                length={6}
+                value={code}
+                onChange={(v) => {
+                  setCode(v)
+                  if (v.length === 6) void confirm(v)
+                }}
+                size="large"
+                autoFocus
+              />
+              <Button type="primary" block size="large" style={{ marginTop: 20 }} loading={busy} onClick={() => void confirm()}>
+                {t('Підтвердити')}
+              </Button>
+              <Button type="link" block onClick={() => setChallenge(null)}>
+                {t('Назад')}
+              </Button>
+            </>
+          )}
+        </Card>
+      </Col>
 
-      <aside className="card demo-accounts">
-        <h2>Демо-облікові записи</h2>
-        <p className="muted small">
-          Пароль для всіх: <code>Demo123!</code>. Натисніть, щоб підставити.
-        </p>
-        <ul>
-          {demoAccounts.map(([mail, title]) => (
-            <li key={mail}>
-              <button
-                type="button"
-                className="link"
+      <Col xs={24} md={10} lg={8}>
+        <Card title={t('Демо-облікові записи')} size="small">
+          <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+            {t('Пароль для всіх')}: <Typography.Text code>{DEMO_PASSWORD}</Typography.Text>. {t('Клік — підставити логін.')}
+          </Typography.Paragraph>
+          <List
+            size="small"
+            dataSource={demoAccounts}
+            renderItem={(a) => (
+              <List.Item
+                style={{ cursor: 'pointer' }}
                 onClick={() => {
-                  setEmail(mail)
-                  setPassword('Demo123!')
+                  setChallenge(null)
+                  form.setFieldsValue({ email: a.email, password: DEMO_PASSWORD })
                 }}
               >
-                {title}
-              </button>
-              <small className="muted">{mail}</small>
-            </li>
-          ))}
-        </ul>
-      </aside>
+                <span style={{ fontSize: 13 }}>{a.email}</span>
+                <span>
+                  <Tag>{t(a.role)}</Tag>
+                  {a.note && <Tag color="gold">{a.note}</Tag>}
+                </span>
+              </List.Item>
+            )}
+          />
+        </Card>
+      </Col>
 
-      {bankUsers && (
-        <div className="modal-backdrop" onClick={() => setBankUsers(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="BankID">
-            <h2>BankID (демонстраційний режим)</h2>
-            <p className="muted small">
-              Справжньої інтеграції з банком немає. Оберіть особу, від імені якої банк «підтвердить» вхід.
-            </p>
-            <ul className="bank-list">
-              {bankUsers.map((u) => (
-                <li key={u.userId}>
-                  <button className="bank-person" onClick={() => bankIdLogin(u.userId)}>
-                    <b>{u.fullName}</b>
-                    <small>
-                      {u.roles.map((r) => roleNames[r] ?? r).join(', ')} ·{' '}
-                      {verificationNames[u.verificationStatus]}
-                    </small>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button className="btn btn-light" onClick={() => setBankUsers(null)}>
-              Скасувати
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+      <Modal open={bankOpen} onCancel={() => setBankOpen(false)} footer={null} title={t('BankID (демо): оберіть особу')}>
+        <Alert
+          type="info"
+          showIcon
+          message={t('Імітація: справжньої інтеграції з банком у курсовій немає. Оберіть, від чийого імені «увійти через банк».')}
+          style={{ marginBottom: 12 }}
+        />
+        <List
+          loading={!bankUsers}
+          dataSource={bankUsers ?? []}
+          style={{ maxHeight: 420, overflow: 'auto' }}
+          renderItem={(u) => (
+            <List.Item
+              actions={[
+                <Button key="in" type="link" onClick={() => void bankLogin(u.userId)}>
+                  {t('Увійти')}
+                </Button>,
+              ]}
+            >
+              <List.Item.Meta title={u.fullName} description={u.roles.map((r) => t(roleNames[r] ?? r)).join(', ')} />
+            </List.Item>
+          )}
+        />
+      </Modal>
+    </Row>
   )
 }

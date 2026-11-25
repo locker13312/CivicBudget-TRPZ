@@ -1,127 +1,125 @@
+import { TrophyFilled } from '@ant-design/icons'
+import { Alert, Card, Progress, Select, Space, Table, Typography } from 'antd'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
+import { api, query } from '../api/client'
 import { formatMoney } from '../api/labels'
 import { useVotesChanged } from '../api/signalr'
 import type { Campaign, ResultRow, ResultsResponse } from '../api/types'
-import {
-  Alert,
-  CampaignBadge,
-  Empty,
-  Field,
-  Loading,
-  PageHeader,
-  StatusBadge,
-  useApi,
-} from '../components/ui'
+import { CampaignTag, ExportButton, LoadState, PageTitle, StatusTag, useLoad } from '../components/common'
 
-/** Результати голосування за категоріями (уявлення vw_ProjectResult), оновлюються наживо через SignalR. */
+const WINNERS = ['winner', 'implementing', 'completed']
+
+/** Результати голосування за категоріями; архів минулих кампаній — через вибір кампанії. */
 export function ResultsPage() {
-  const campaigns = useApi<Campaign[]>('/api/campaigns')
-  const [campaignId, setCampaignId] = useState<string>('')
-  const id = campaignId || String(campaigns.data?.[0]?.campaignId ?? '')
-  const { data, error, loading, reload } = useApi<ResultsResponse>(
-    id ? `/api/campaigns/results?campaignId=${id}` : null,
-    [id],
-  )
-  useVotesChanged(() => reload())
+  const { t } = useTranslation()
+  const [campaignId, setCampaignId] = useState<number | undefined>()
+  const campaigns = useLoad(() => api<Campaign[]>('/api/campaigns'), [])
+  const res = useLoad(() => api<ResultsResponse>(`/api/campaigns/results${query({ campaignId })}`), [campaignId])
+
+  useVotesChanged(() => void res.reload())
 
   const groups = new Map<string, ResultRow[]>()
-  data?.rows.forEach((r) => groups.set(r.categoryName, [...(groups.get(r.categoryName) ?? []), r]))
+  for (const r of res.data?.rows ?? []) groups.set(r.categoryName, [...(groups.get(r.categoryName) ?? []), r])
+  const c = res.data?.campaign
 
   return (
     <>
-      <PageHeader
-        title="Результати голосування"
-        subtitle={
-          data && (
-            <>
-              {data.campaign.name} · <CampaignBadge status={data.campaign.status} />
-            </>
-          )
-        }
-        actions={
-          <Field label="Кампанія">
-            <select value={id} onChange={(e) => setCampaignId(e.target.value)}>
-              {campaigns.data?.map((c) => (
-                <option key={c.campaignId} value={c.campaignId}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+      <PageTitle
+        title={t('Результати голосування')}
+        subtitle={t('Лічильники оновлюються в реальному часі')}
+        help="results"
+        extra={
+          <>
+            <Select
+              style={{ minWidth: 220 }}
+              value={campaignId ?? c?.campaignId}
+              onChange={setCampaignId}
+              options={(campaigns.data ?? []).map((x) => ({ value: x.campaignId, label: x.name }))}
+              aria-label={t('Кампанія')}
+            />
+            <ExportButton path={`/api/reports/results${query({ campaignId: c?.campaignId })}`} label="Результати" />
+            <ExportButton path={`/api/reports/winners${query({ campaignId: c?.campaignId })}`} label="Переможці" />
+          </>
         }
       />
-      <Alert>{error}</Alert>
-      {data?.votesHidden && (
-        <Alert kind="info">Проміжні результати приховано до завершення голосування.</Alert>
-      )}
-      {data?.campaign.status === 'voting' && !data.votesHidden && (
-        <Alert kind="info">
-          Голосування триває — це проміжні результати, вони оновлюються в реальному часі.
-        </Alert>
-      )}
-      {loading && !data ? (
-        <Loading />
-      ) : groups.size === 0 ? (
-        <Empty>У цій кампанії ще немає опублікованих проєктів.</Empty>
-      ) : (
-        [...groups.entries()].map(([category, rows]) => {
-          const limit = data!.campaign.categories.find((c) => c.categoryName === category)?.budgetLimit ?? 0
-          const max = Math.max(1, ...rows.map((r) => r.totalVotes))
-          return (
-            <section className="card" key={category}>
-              <div className="section-title">
-                <h2>{category}</h2>
-                <span className="muted">ліміт категорії: {formatMoney(limit)}</span>
-              </div>
-              <table className="table results">
-                <thead>
-                  <tr>
-                    <th>Місце</th>
-                    <th>Проєкт</th>
-                    <th>Район</th>
-                    <th className="num">Вартість</th>
-                    <th style={{ width: '28%' }}>Голоси (онлайн / паперові)</th>
-                    <th>Статус</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r, i) => (
-                    <tr
-                      key={r.projectId}
-                      className={
-                        r.status === 'winner' || r.status === 'implementing' || r.status === 'completed'
-                          ? 'row-win'
-                          : ''
-                      }
-                    >
-                      <td>{i + 1}</td>
-                      <td>
-                        <Link to={`/projects/${r.projectId}`}>{r.title}</Link>
-                        <small className="muted block">{r.regNumber}</small>
-                      </td>
-                      <td>{r.districtName}</td>
-                      <td className="num">{formatMoney(r.cost)}</td>
-                      <td>
-                        <div className="bar">
-                          <span style={{ width: `${(r.totalVotes / max) * 100}%` }} />
-                        </div>
-                        <b>{r.totalVotes}</b>{' '}
-                        <small className="muted">
-                          ({r.onlineVotes} / {r.paperVotes}), виборців: {r.voterCount}
-                        </small>
-                      </td>
-                      <td>
-                        <StatusBadge status={r.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          )
-        })
-      )}
+      <LoadState loading={res.loading && !res.data} error={res.error}>
+        {c && (
+          <>
+            <Space style={{ marginBottom: 16 }} wrap>
+              <Typography.Text strong>{c.name}</Typography.Text>
+              <CampaignTag status={c.status} />
+            </Space>
+            {res.data!.votesHidden && (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+                message={t('Проміжні результати приховано до завершення голосування (параметр кампанії).')}
+              />
+            )}
+            {[...groups.entries()].map(([category, rows]) => {
+              const limit = c.categories.find((x) => x.categoryName === category)?.budgetLimit ?? 0
+              const sorted = [...rows].sort((a, b) => b.totalVotes - a.totalVotes || b.voterCount - a.voterCount)
+              const max = Math.max(1, ...sorted.map((r) => r.totalVotes))
+              return (
+                <Card
+                  key={category}
+                  title={t(category)}
+                  extra={
+                    <Typography.Text type="secondary">
+                      {t('Ліміт')}: {formatMoney(limit)}
+                    </Typography.Text>
+                  }
+                  style={{ marginBottom: 20 }}
+                >
+                  <Table
+                    size="small"
+                    rowKey="projectId"
+                    pagination={false}
+                    dataSource={sorted}
+                    scroll={{ x: 760 }}
+                    rowClassName={(r) => (WINNERS.includes(r.status) ? 'row-winner' : '')}
+                    columns={[
+                      {
+                        title: '#',
+                        width: 48,
+                        render: (_, r, i) => (WINNERS.includes(r.status) ? <TrophyFilled style={{ color: '#d4a017' }} /> : i + 1),
+                      },
+                      {
+                        title: t('Проєкт'),
+                        render: (_, r) => (
+                          <>
+                            <Link to={`/projects/${r.projectId}`}>{r.title}</Link>
+                            <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+                              {r.regNumber} · {t(r.districtName)}
+                            </div>
+                          </>
+                        ),
+                      },
+                      { title: t('Вартість'), dataIndex: 'cost', align: 'right', width: 130, render: (v: number) => formatMoney(v) },
+                      {
+                        title: t('Голоси'),
+                        width: 220,
+                        render: (_, r) => (
+                          <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                            <Progress percent={Math.round((r.totalVotes / max) * 100)} format={() => r.totalVotes} size="small" />
+                            <span style={{ fontSize: 12, color: '#8c8c8c' }}>
+                              {t('онлайн')} {r.onlineVotes} · {t('папір')} {r.paperVotes} · {t('виборців')} {r.voterCount}
+                            </span>
+                          </Space>
+                        ),
+                      },
+                      { title: t('Статус'), dataIndex: 'status', width: 140, render: (s: string) => <StatusTag status={s} /> },
+                    ]}
+                  />
+                </Card>
+              )
+            })}
+          </>
+        )}
+      </LoadState>
     </>
   )
 }

@@ -1,203 +1,286 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { ArrowLeftOutlined, BellFilled, BellOutlined, BuildOutlined, FilePdfOutlined, LikeOutlined, PlusOutlined } from '@ant-design/icons'
+import { Alert, App, Button, Card, Col, Descriptions, Empty, Flex, Image, List, Row, Space, Statistic, Table, Tag, Timeline, Typography } from 'antd'
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
-import { decisionNames, formatDate, formatDateTime, formatMoney, reviewType, votesWord } from '../api/labels'
+import { decisionNames, formatDate, formatDateTime, formatMoney, reviewType } from '../api/labels'
 import { useVotesChanged } from '../api/signalr'
 import type { MyBallot, ProjectDetails } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { Alert, Loading, StatusBadge, useApi } from '../components/ui'
-import { ExpertPanel, ModerationPanel } from './ReviewPanels'
+import { ExportButton, LoadState, PageTitle, ProjectCover, StatusTag, useLoad } from '../components/common'
+import { SinglePointMap } from '../components/ProjectMap'
 
-/** Картка проєкту: опис, кошторис, вартість, статус, голоси; голосування, підписка; панелі модератора й експерта. */
 export function ProjectPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
-  const { user, hasRole } = useAuth()
-  const { data: p, error, loading, reload } = useApi<ProjectDetails>(`/api/projects/${id}`, [id])
-  const ballot = useApi<MyBallot>(hasRole('resident') ? '/api/voting/my' : null, [user?.userId])
-  const sub = useApi<{ subscribed: boolean }>(user ? `/api/projects/${id}/subscription` : null, [
-    id,
-    user?.userId,
-  ])
-  const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [reviewMessage, setReviewMessage] = useState<string | null>(null)
+  const { data: p, setData, loading, error } = useLoad(() => api<ProjectDetails>(`/api/projects/${id}`), [id])
 
-  // після рішення модератора чи експерта статус змінюється і панель може зникнути — повідомлення показуємо на сторінці
-  function afterReview(text: string) {
-    setReviewMessage(text)
-    reload()
-  }
-
+  // SignalR: голоси оновлюються наживо
   useVotesChanged((projectId) => {
-    if (projectId === 0 || projectId === Number(id)) reload()
+    if (projectId === 0 || projectId === Number(id))
+      void api<ProjectDetails>(`/api/projects/${id}`).then(setData).catch(() => undefined)
   })
-
-  if (loading && !p) return <Loading />
-  if (error || !p) return <Alert>{error ?? 'Проєкт не знайдено.'}</Alert>
-
-  const myVotes = ballot.data?.projects.find((b) => b.projectId === p.projectId)?.myVotes ?? 0
-  const canVote = p.status === 'published' && p.campaignStatus === 'voting'
-  const showReviews = user && (user.userId === p.authorId || hasRole('moderator', 'expert', 'admin'))
-
-  async function vote() {
-    setBusy(true)
-    setMessage(null)
-    try {
-      const b = await api<MyBallot>(`/api/voting/${p!.projectId}`, { method: 'POST' })
-      ballot.setData(b)
-      setMessage({ kind: 'success', text: `Голос зараховано! У вас лишилось ${votesWord(b.remaining)}.` })
-      reload()
-    } catch (e) {
-      // помилки тригера TR_Vote_CheckRules (50001–50005) приходять уже зрозумілим текстом
-      setMessage({ kind: 'error', text: (e as Error).message })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function toggleSubscription() {
-    const subscribed = sub.data?.subscribed
-    const r = await api<{ subscribed: boolean }>(`/api/projects/${p!.projectId}/subscription`, {
-      method: subscribed ? 'DELETE' : 'PUT',
-    })
-    sub.setData(r)
-  }
 
   return (
     <>
-      {reviewMessage && <Alert kind="success">{reviewMessage}</Alert>}
-      <p className="breadcrumbs">
-        <Link to="/projects">Проєкти</Link> / {p.regNumber ?? 'чернетка'}
-      </p>
-      <div className="project-layout">
-        <article className="card">
-          <div className="project-card-top">
-            <span className="chip">{p.categoryName}</span>
-            <StatusBadge status={p.status} />
-          </div>
-          <h1>{p.title}</h1>
-          {p.summary && <p className="lead">{p.summary}</p>}
+      <Link to="/projects">
+        <ArrowLeftOutlined /> {t('До каталогу')}
+      </Link>
+      <div style={{ height: 12 }} />
+      <LoadState loading={loading} error={error}>
+        {p && <Project p={p} onChange={setData} />}
+      </LoadState>
+    </>
+  )
+}
 
-          <dl className="props">
-            <dt>Номер</dt>
-            <dd>{p.regNumber ?? '—'}</dd>
-            <dt>Кампанія</dt>
-            <dd>{p.campaignName}</dd>
-            <dt>Район</dt>
-            <dd>{p.districtName}</dd>
-            <dt>Адреса</dt>
-            <dd>{p.address ?? '—'}</dd>
-            <dt>Автор</dt>
-            <dd>{p.authorName}</dd>
-            <dt>Подано</dt>
-            <dd>{formatDate(p.submittedAt)}</dd>
-            <dt>Опубліковано</dt>
-            <dd>{formatDate(p.publishedAt)}</dd>
-          </dl>
+function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDetails) => void }) {
+  const { t } = useTranslation()
+  const { user, hasRole } = useAuth()
+  const { message } = App.useApp()
+  const navigate = useNavigate()
+  const [subscribed, setSubscribed] = useState<boolean | null>(null)
+  const [ballot, setBallot] = useState<MyBallot | null>(null)
+  const [voting, setVoting] = useState(false)
+  const images = p.attachments.filter((a) => a.mimeType.startsWith('image/'))
+  const docs = p.attachments.filter((a) => !a.mimeType.startsWith('image/'))
+  const isStaff = hasRole('moderator', 'expert', 'admin')
+  const canVote = hasRole('resident') && p.status === 'published' && p.campaignStatus === 'voting'
 
-          <h2>Опис</h2>
-          <p className="description">{p.description ?? 'Опис ще не заповнено.'}</p>
+  useEffect(() => {
+    if (!user) return
+    api<{ subscribed: boolean }>(`/api/projects/${p.projectId}/subscription`)
+      .then((r) => setSubscribed(r.subscribed))
+      .catch(() => undefined)
+  }, [user, p.projectId])
 
-          <h2>Кошторис</h2>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>№</th>
-                <th>Позиція</th>
-                <th>Од.</th>
-                <th className="num">Кількість</th>
-                <th className="num">Ціна</th>
-                <th className="num">Сума</th>
-              </tr>
-            </thead>
-            <tbody>
-              {p.budgetItems.map((b, i) => (
-                <tr key={b.budgetItemId}>
-                  <td>{i + 1}</td>
-                  <td>{b.name}</td>
-                  <td>{b.unit}</td>
-                  <td className="num">{b.quantity}</td>
-                  <td className="num">{formatMoney(b.unitPrice)}</td>
-                  <td className="num">{formatMoney(b.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={5}>Разом (вартість проєкту)</td>
-                <td className="num">
-                  <b>{formatMoney(p.cost)}</b>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+  useEffect(() => {
+    if (canVote) api<MyBallot>('/api/voting/my').then(setBallot).catch(() => undefined)
+  }, [canVote])
 
-          {showReviews && p.reviews.length > 0 && (
+  const toggleSubscription = async () => {
+    const r = await api<{ subscribed: boolean }>(`/api/projects/${p.projectId}/subscription`, {
+      method: subscribed ? 'DELETE' : 'PUT',
+    })
+    setSubscribed(r.subscribed)
+    message.success(r.subscribed ? t('Ви стежите за проєктом') : t('Ви більше не стежите за проєктом'))
+  }
+
+  const vote = async () => {
+    setVoting(true)
+    try {
+      const b = await api<MyBallot>(`/api/voting/${p.projectId}`, { method: 'POST' })
+      setBallot(b)
+      message.success(t('Голос враховано. Лишилось голосів: {{n}}', { n: b.remaining }))
+      onChange(await api<ProjectDetails>(`/api/projects/${p.projectId}`))
+    } catch (e) {
+      message.error((e as Error).message, 6)
+    } finally {
+      setVoting(false)
+    }
+  }
+
+  const myVotes = ballot?.projects.find((x) => x.projectId === p.projectId)?.myVotes ?? 0
+
+  return (
+    <>
+      <PageTitle
+        title={p.title}
+        subtitle={
+          <Space wrap size={6}>
+            <StatusTag status={p.status} />
+            <Tag>{p.regNumber ?? t('без номера')}</Tag>
+            <Tag color="blue">{t(p.categoryName)}</Tag>
+            <Tag>{t(p.districtName)}</Tag>
+            <span>{p.campaignName}</span>
+          </Space>
+        }
+        help="project"
+        extra={
+          <>
+            {user && subscribed !== null && (
+              <Button icon={subscribed ? <BellFilled /> : <BellOutlined />} onClick={() => void toggleSubscription()}>
+                {subscribed ? t('Ви стежите') : t('Стежити')}
+              </Button>
+            )}
+            <ExportButton path={`/api/reports/project/${p.projectId}`} />
+          </>
+        }
+      />
+
+      {p.duplicateOfId && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={
             <>
-              <h2>Історія розгляду</h2>
-              <ul className="reviews">
-                {p.reviews.map((r) => (
-                  <li key={r.reviewId} className={`review review-${r.decision}`}>
-                    <div>
-                      <b>{reviewType[r.reviewType]}</b> — {decisionNames[r.decision]}
-                      <small className="muted">
-                        {' '}
-                        · {r.reviewerName} · {formatDateTime(r.createdAt)}
-                      </small>
-                    </div>
-                    {r.comment && <p>{r.comment}</p>}
-                  </li>
-                ))}
-              </ul>
+              {t('Проєкт позначено як дублікат')}{' '}
+              <Link to={`/projects/${p.duplicateOfId}`}>{p.duplicateOfRegNumber ?? `#${p.duplicateOfId}`}</Link>
             </>
+          }
+        />
+      )}
+
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={16}>
+          <Card styles={{ body: { padding: 0 } }} style={{ overflow: 'hidden', marginBottom: 24 }}>
+            {images.length > 0 ? (
+              <Image.PreviewGroup>
+                <Image src={`/api/files/${images[0].attachmentId}`} width="100%" height={340} style={{ objectFit: 'cover' }} alt={p.title} />
+                {images.length > 1 && (
+                  <Flex gap={8} style={{ padding: 8 }} wrap>
+                    {images.slice(1).map((a) => (
+                      <Image key={a.attachmentId} src={`/api/files/${a.attachmentId}`} width={110} height={76} style={{ objectFit: 'cover', borderRadius: 6 }} />
+                    ))}
+                  </Flex>
+                )}
+              </Image.PreviewGroup>
+            ) : (
+              <ProjectCover categoryId={p.categoryId} categoryName={t(p.categoryName)} height={200} />
+            )}
+          </Card>
+
+          <Card title={t('Опис проєкту')} style={{ marginBottom: 24 }}>
+            {p.summary && (
+              <Typography.Paragraph strong style={{ fontSize: 15 }}>
+                {p.summary}
+              </Typography.Paragraph>
+            )}
+            <Typography.Paragraph style={{ whiteSpace: 'pre-line', marginBottom: 0 }}>{p.description ?? '—'}</Typography.Paragraph>
+            {docs.length > 0 && (
+              <List
+                size="small"
+                header={t('Документи')}
+                dataSource={docs}
+                style={{ marginTop: 16 }}
+                renderItem={(a) => (
+                  <List.Item>
+                    <a href={`/api/files/${a.attachmentId}`} target="_blank" rel="noreferrer">
+                      <FilePdfOutlined /> {a.fileName}
+                    </a>
+                  </List.Item>
+                )}
+              />
+            )}
+          </Card>
+
+          <Card title={t('Кошторис')} style={{ marginBottom: 24 }}>
+            <Table
+              size="small"
+              rowKey="budgetItemId"
+              pagination={false}
+              dataSource={p.budgetItems}
+              scroll={{ x: 520 }}
+              columns={[
+                { title: t('Позиція'), dataIndex: 'name' },
+                { title: t('Од.'), dataIndex: 'unit', width: 70 },
+                { title: t('К-сть'), dataIndex: 'quantity', align: 'right', width: 80 },
+                { title: t('Ціна'), dataIndex: 'unitPrice', align: 'right', render: (v: number) => formatMoney(v) },
+                { title: t('Сума'), dataIndex: 'amount', align: 'right', render: (v: number) => <b>{formatMoney(v)}</b> },
+              ]}
+              summary={() => (
+                <Table.Summary.Row>
+                  <Table.Summary.Cell index={0} colSpan={4}>
+                    <b>{t('Разом')}</b>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell index={1} align="right">
+                    <b>{formatMoney(p.cost)}</b>
+                  </Table.Summary.Cell>
+                </Table.Summary.Row>
+              )}
+            />
+          </Card>
+
+          {(isStaff || p.authorId === user?.userId) && p.reviews.length > 0 && (
+            <Card title={t('Розгляд проєкту')}>
+              <Timeline
+                items={p.reviews.map((r) => ({
+                  color: r.decision === 'approve' ? 'green' : r.decision === 'reject' ? 'red' : 'orange',
+                  children: (
+                    <>
+                      <b>{t(reviewType[r.reviewType])}</b> — {t(decisionNames[r.decision])}
+                      <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+                        {r.reviewerName}, {formatDateTime(r.createdAt)}
+                      </div>
+                      {r.comment && <div>{r.comment}</div>}
+                    </>
+                  ),
+                }))}
+              />
+            </Card>
           )}
-        </article>
+        </Col>
 
-        <aside>
-          <div className="card vote-box">
-            <div className="big-number">{p.totalVotes}</div>
-            <div className="muted">
-              {votesWord(p.totalVotes).replace(/^\d+ /, '')} від {p.voterCount} виборців
-            </div>
-            <div className="split">
-              <span>онлайн: {p.onlineVotes}</span>
-              <span>паперові: {p.paperVotes}</span>
-            </div>
-            <div className="cost-line">
-              Вартість: <b>{formatMoney(p.cost)}</b>
-            </div>
-
-            {canVote && hasRole('resident') && ballot.data && (
+        <Col xs={24} lg={8}>
+          <Card style={{ marginBottom: 24 }}>
+            <Statistic title={t('Орієнтовна вартість')} value={p.cost} suffix={t('грн')} groupSeparator=" " precision={0} />
+            <Row gutter={12} style={{ marginTop: 16 }}>
+              <Col span={12}>
+                <Statistic title={t('Голоси')} value={p.totalVotes} prefix={<LikeOutlined />} />
+              </Col>
+              <Col span={12}>
+                <Statistic title={t('Виборців')} value={p.voterCount} />
+              </Col>
+            </Row>
+            <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>
+              {t('онлайн')}: {p.onlineVotes} · {t('паперові')}: {p.paperVotes}
+            </Typography.Paragraph>
+            {canVote && (
               <>
-                <p className="muted small">
-                  Ваших голосів за цей проєкт: <b>{myVotes}</b>. Лишилось у кампанії:{' '}
-                  <b>{ballot.data.remaining}</b> з {ballot.data.votesPerVoter}.
-                </p>
-                <button className="btn btn-accent btn-block" disabled={busy} onClick={vote}>
-                  {myVotes === 0 ? 'Підтримати проєкт' : 'Віддати ще один голос'}
-                </button>
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  icon={<PlusOutlined />}
+                  loading={voting}
+                  onClick={() => void vote()}
+                >
+                  {t('Голосувати')}
+                </Button>
+                {ballot && (
+                  <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, textAlign: 'center' }}>
+                    {t('Ваших голосів за проєкт')}: {myVotes} / {ballot.maxVotesPerProject} · {t('лишилось')}: {ballot.remaining}
+                  </Typography.Paragraph>
+                )}
               </>
             )}
-            {canVote && !user && (
-              <Link to="/login" className="btn btn-accent btn-block">
-                Увійдіть, щоб проголосувати
-              </Link>
+            {!user && p.status === 'published' && p.campaignStatus === 'voting' && (
+              <Button block size="large" onClick={() => navigate('/login', { state: { from: `/projects/${p.projectId}` } })}>
+                {t('Увійдіть, щоб голосувати')}
+              </Button>
             )}
-            {message && <Alert kind={message.kind}>{message.text}</Alert>}
-
-            {user && sub.data && (
-              <button className="btn btn-light btn-block" onClick={toggleSubscription}>
-                {sub.data.subscribed ? '✓ Ви підписані на оновлення' : '🔔 Підписатися на оновлення'}
-              </button>
+            {p.implementationId && (
+              <Button block icon={<BuildOutlined />} style={{ marginTop: 8 }} onClick={() => navigate(`/implementation/${p.implementationId}`)}>
+                {t('Хід реалізації')}
+              </Button>
             )}
-          </div>
+          </Card>
 
-          {hasRole('moderator') && ['submitted', 'moderation'].includes(p.status) && (
-            <ModerationPanel project={p} onDone={afterReview} />
-          )}
-          {hasRole('expert') && p.status === 'expertise' && <ExpertPanel project={p} onDone={afterReview} />}
-        </aside>
-      </div>
+          <Card title={t('Місце реалізації')} style={{ marginBottom: 24 }} styles={{ body: { padding: 12 } }}>
+            {p.latitude != null && p.longitude != null ? (
+              <SinglePointMap lat={p.latitude} lng={p.longitude} />
+            ) : (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('Точку на карті не вказано')} />
+            )}
+            <Typography.Paragraph style={{ margin: '8px 4px 0' }}>{p.address ?? '—'}</Typography.Paragraph>
+          </Card>
+
+          <Card title={t('Відомості')}>
+            <Descriptions
+              column={1}
+              size="small"
+              items={[
+                { label: t('Автор'), children: p.authorName },
+                { label: t('Подано'), children: formatDate(p.submittedAt) },
+                { label: t('Опубліковано'), children: formatDate(p.publishedAt) },
+                ...(p.moderatorName ? [{ label: t('Модератор'), children: p.moderatorName }] : []),
+              ]}
+            />
+          </Card>
+        </Col>
+      </Row>
     </>
   )
 }

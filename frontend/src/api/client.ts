@@ -59,14 +59,15 @@ async function tryRefresh(): Promise<boolean> {
   return refreshing
 }
 
-export async function api<T>(
+async function send(
   path: string,
-  options: { method?: string; body?: unknown } = {},
-  retry = true,
-): Promise<T> {
+  options: { method?: string; body?: unknown },
+  retry: boolean,
+): Promise<Response> {
   const auth = loadAuth()
   const headers: Record<string, string> = {}
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  const isForm = options.body instanceof FormData
+  if (options.body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
   if (auth) headers.Authorization = `Bearer ${auth.accessToken}`
 
   let res: Response
@@ -74,35 +75,71 @@ export async function api<T>(
     res = await fetch(path, {
       method: options.method ?? 'GET',
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: isForm
+        ? (options.body as FormData)
+        : options.body !== undefined
+          ? JSON.stringify(options.body)
+          : undefined,
     })
   } catch {
     throw new ApiError('Сервер недоступний. Перевірте, що бекенд запущено.', 0)
   }
 
   if (res.status === 401 && auth && retry) {
-    if (await tryRefresh()) return api<T>(path, options, false)
+    if (await tryRefresh()) return send(path, options, false)
     throw new ApiError('Сесія завершилась. Увійдіть знову.', 401)
   }
+  if (!res.ok) throw await toError(res)
+  return res
+}
 
-  if (!res.ok) {
-    let message = 'Сталася помилка. Спробуйте ще раз.'
-    let code = 0
-    try {
-      const data = await res.json()
-      if (data?.message) message = data.message
-      else if (data?.title) message = data.title
-      code = data?.code ?? 0
-    } catch {
-      /* відповідь без тіла */
-    }
-    if (res.status === 401) message = 'Потрібно увійти в систему.'
-    if (res.status === 403 && message.startsWith('Сталася')) message = 'Недостатньо прав для цієї дії.'
-    throw new ApiError(message, res.status, code)
+async function toError(res: Response): Promise<ApiError> {
+  let message = 'Сталася помилка. Спробуйте ще раз.'
+  let code = 0
+  try {
+    const data = await res.json()
+    if (data?.message) message = data.message
+    else if (data?.title) message = data.title
+    code = data?.code ?? 0
+  } catch {
+    /* відповідь без тіла */
   }
+  if (res.status === 401) message = 'Потрібно увійти в систему.'
+  if (res.status === 403 && message.startsWith('Сталася')) message = 'Недостатньо прав для цієї дії.'
+  return new ApiError(message, res.status, code)
+}
 
+/** JSON-запит до API. body може бути об'єктом (JSON) або FormData (файли). */
+export async function api<T>(
+  path: string,
+  options: { method?: string; body?: unknown } = {},
+): Promise<T> {
+  const res = await send(path, options, true)
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
+}
+
+/** Завантажити файл (звіт PDF/XLSX/CSV, вкладення) з токеном і зберегти на диск. */
+export async function download(path: string, fallbackName = 'file') {
+  const res = await send(path, {}, true)
+  const disposition = res.headers.get('content-disposition') ?? ''
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(disposition)
+  const plain = /filename="?([^";]+)"?/i.exec(disposition)
+  const name = star ? decodeURIComponent(star[1]) : plain ? plain[1] : fallbackName
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
+}
+
+/** Отримати файл як blob-URL (для перегляду непублічних фото з токеном). */
+export async function blobUrl(path: string): Promise<string> {
+  const res = await send(path, {}, true)
+  return URL.createObjectURL(await res.blob())
 }
 
 /** Рядок запиту з об'єкта; порожні значення пропускаються. */

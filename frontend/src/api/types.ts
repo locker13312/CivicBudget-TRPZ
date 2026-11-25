@@ -74,6 +74,10 @@ export interface ProjectListItem {
   updatedAt: string
   lastDecision: string | null
   lastComment: string | null
+  moderatorId: number | null
+  moderatorName: string | null
+  duplicateOfId: number | null
+  photoId: number | null
 }
 
 export interface BudgetItem {
@@ -121,6 +125,22 @@ export interface ProjectDetails {
   voterCount: number
   budgetItems: BudgetItem[]
   reviews: Review[]
+  latitude: number | null
+  longitude: number | null
+  moderatorId: number | null
+  moderatorName: string | null
+  duplicateOfId: number | null
+  duplicateOfRegNumber: string | null
+  implementationId: number | null
+  attachments: AttachmentItem[]
+}
+
+export interface AttachmentItem {
+  attachmentId: number
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  uploadedAt: string
 }
 
 export interface ProjectForEdit {
@@ -144,6 +164,8 @@ export interface ProjectEdit {
   categoryId: number
   districtId: number
   budgetItems: BudgetItemInput[]
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface SubmitResult {
@@ -155,6 +177,7 @@ export interface SubmitResult {
 export interface ModerationQueue {
   queue: ProjectListItem[]
   readyToPublish: ProjectListItem[]
+  moderators: LookupItem[]
 }
 
 export interface BallotProject {
@@ -266,6 +289,13 @@ export interface Statistics {
   }[]
   byDistrict: { districtName: string; projectCount: number; totalVotes: number }[]
   byStatus: { status: string; count: number }[]
+  budgetUsage: {
+    implementations: number
+    completed: number
+    plannedBudget: number
+    actualCost: number
+    winnersCost: number
+  }
 }
 
 export interface References {
@@ -273,4 +303,113 @@ export interface References {
   districts: LookupItem[]
   stations: LookupItem[]
   roles: { code: string; name: string }[]
+}
+
+export interface LoginResponse {
+  requiresTwoFactor: boolean
+  challengeId: string | null
+  message: string | null
+  devHint: string | null
+  accessToken: string | null
+  refreshToken: string | null
+  accessExpiresAt: string | null
+  user: UserInfo | null
+}
+
+export interface DemoPerson {
+  personId: number
+  lastName: string
+  firstName: string
+  middleName: string
+  birthDate: string
+  taxNumber: string
+  regAddress: string
+  districtId: number | null
+  districtName: string
+}
+
+export interface MapPoint {
+  projectId: number
+  regNumber: string | null
+  title: string
+  status: string
+  categoryName: string
+  latitude: number
+  longitude: number
+  cost: number
+  totalVotes: number
+}
+
+export interface SimilarProject {
+  projectId: number
+  regNumber: string | null
+  title: string
+  status: string
+  commonWords: number
+}
+
+export interface ImplementationListItem {
+  implementationId: number
+  projectId: number
+  regNumber: string | null
+  title: string
+  campaignYear: number
+  categoryName: string
+  districtName: string
+  contractorId: number
+  contractorName: string
+  status: string
+  plannedBudget: number
+  actualCost: number
+  stagesTotal: number
+  stagesDone: number
+  startDate: string
+  plannedEndDate: string
+  actualEndDate: string | null
+  pendingReports: number
+}
+
+export interface ReportItem {
+  reportId: number
+  stageId: number
+  authorName: string
+  body: string
+  status: string
+  submittedAt: string
+  reviewedByName: string | null
+  reviewedAt: string | null
+  reviewComment: string | null
+  attachments: AttachmentItem[]
+}
+
+export interface StageItem {
+  stageId: number
+  stageNo: number
+  name: string
+  plannedEndDate: string
+  plannedCost: number
+  actualCost: number | null
+  status: string
+  completedAt: string | null
+  reports: ReportItem[]
+}
+
+export interface ImplementationDetails {
+  summary: ImplementationListItem
+  contractorPhone: string | null
+  contractorEmail: string | null
+  stages: StageItem[]
+}
+
+export interface PendingReport {
+  reportId: number
+  implementationId: number
+  projectTitle: string
+  regNumber: string | null
+  stageNo: number
+  stageName: string
+  authorName: string
+  body: string
+  submittedAt: string
+  attachments: AttachmentItem[]
 }
