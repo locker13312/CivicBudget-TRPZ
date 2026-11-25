@@ -59,14 +59,14 @@ export default function App() {
               <Route path="notifications" element={guard(<NotificationsPage />)} />
 
               {/* мешканець / автор */}
-              <Route path="voting" element={guard(<Legacy><VotingPage /></Legacy>, ['resident'])} />
+              <Route path="voting" element={guard(<VotingPage />, ['resident'])} />
               <Route path="my/projects" element={guard(<MyProjectsPage />, ['resident'])} />
               <Route path="my/projects/:id" element={guard(<ProjectFormPage />, ['resident'])} />
 
               {/* працівники */}
               <Route path="moderation" element={guard(<ModerationPage />, ['moderator'])} />
               <Route path="expertise" element={guard(<ExpertisePage />, ['expert'])} />
-              <Route path="operator" element={guard(<Legacy><OperatorPage /></Legacy>, ['operator'])} />
+              <Route path="operator" element={guard(<OperatorPage />, ['operator'])} />
 
               {/* адміністратор */}
               <Route path="admin/campaign" element={guard(<Legacy><AdminCampaignPage /></Legacy>, ['admin'])} />
