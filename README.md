@@ -170,6 +170,10 @@ CivicBudget-TRPZ/
 
 ## Документація
 
+- [docs/user-guide.md](docs/user-guide.md) — інструкція користувача (за ролями)
+- [docs/programmer-guide.md](docs/programmer-guide.md) — інструкція програміста: шари, як додати функцію, помилки, тести
+- [docs/sysadmin-guide.md](docs/sysadmin-guide.md) — встановлення, конфігурація, розгортання, безпека, діагностика
+- [docs/dba-guide.md](docs/dba-guide.md) — об'єкти БД, коди помилок, аудит, резервне копіювання
 - [docs/adr/0001-stack.md](docs/adr/0001-stack.md) — технологічний стек і відхилення від ТЗ
 - [docs/screens/](docs/screens/) — скріни всіх форм (1440×900)
 - Swagger — повний перелік ендпоінтів з описами: <https://localhost:7080/swagger>
