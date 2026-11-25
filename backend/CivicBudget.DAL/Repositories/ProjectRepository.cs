@@ -13,7 +13,7 @@ public class ProjectRepository : IProjectRepository
 
     public ProjectRepository(CivicBudgetContext db) => _db = db;
 
-    /// <summary>Проміжна проєкція: проєкт + вартість (з уявлення vw_ProjectCost) + сума голосів.</summary>
+    // Проміжна проєкція: проєкт + вартість (з уявлення vw_ProjectCost) + сума голосів.
     private class Row
     {
         public Project P { get; set; } = null!;
@@ -116,7 +116,7 @@ public class ProjectRepository : IProjectRepository
                 .Select(a => new AttachmentModel(a.AttachmentId, a.FileName, a.MimeType, a.SizeBytes, a.UploadedAt)).ToList());
     }
 
-    /// <summary>Фільтри каталогу (лямбди) — спільні для списку і карти.</summary>
+    // Фільтри каталогу (лямбди) — спільні для списку і карти.
     private IQueryable<Row> Filtered(ProjectFilter f, IReadOnlyCollection<string> allowedStatuses)
     {
         IQueryable<Project> projects = _db.Projects.AsNoTracking().Where(p => allowedStatuses.Contains(p.Status));
@@ -141,8 +141,17 @@ public class ProjectRepository : IProjectRepository
     {
         var rows = await Filtered(f, allowedStatuses)
             .Where(x => x.P.Location != null)
-            .Select(x => new { x.P.ProjectId, x.P.RegNumber, x.P.Title, x.P.Status, Category = x.P.CampaignCategory.Category.Name,
-                               x.P.Location, x.Cost, x.Votes })
+            .Select(x => new
+            {
+                x.P.ProjectId,
+                x.P.RegNumber,
+                x.P.Title,
+                x.P.Status,
+                Category = x.P.CampaignCategory.Category.Name,
+                x.P.Location,
+                x.Cost,
+                x.Votes
+            })
             .ToListAsync();
         return rows.Select(r => new MapPoint(r.ProjectId, r.RegNumber, r.Title, r.Status, r.Category,
             r.Location!.Coordinate.Y, r.Location.Coordinate.X, r.Cost, r.Votes)).ToList();

@@ -123,7 +123,6 @@ export function AppLayout() {
 
   useEffect(() => setDrawer(false), [location.pathname])
 
-  // лічильник непрочитаних сповіщень
   useEffect(() => {
     if (!user) return setUnread(0)
     let alive = true
@@ -139,7 +138,6 @@ export function AppLayout() {
     }
   }, [user, location.pathname])
 
-  // спливаюче меню користувача в шапці
   const userMenu: MenuProps = {
     items: [
       {

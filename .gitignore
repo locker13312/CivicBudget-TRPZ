@@ -12,3 +12,4 @@ backend/CivicBudget.Api/mail-outbox/
 # dev-сертифікат HTTPS (експортується локально)
 .certs/
 *.log
+

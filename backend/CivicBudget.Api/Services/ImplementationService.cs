@@ -97,7 +97,11 @@ public class ImplementationService
 
         var report = new Report
         {
-            StageId = stage.StageId, AuthorId = executorId, Body = body.Trim(), Status = "submitted", SubmittedAt = DateTime.Now
+            StageId = stage.StageId,
+            AuthorId = executorId,
+            Body = body.Trim(),
+            Status = "submitted",
+            SubmittedAt = DateTime.Now
         };
         _impl.AddReport(report);
         await DbErrors.Run(_impl.SaveAsync);
@@ -107,8 +111,13 @@ public class ImplementationService
             var key = await _files.SaveAsync(f, $"reports/{report.ReportId}");
             _attachments.Add(new Attachment
             {
-                ReportId = report.ReportId, FileName = Path.GetFileName(f.FileName), MimeType = f.ContentType,
-                StorageKey = key, SizeBytes = (int)f.Length, UploadedBy = executorId, UploadedAt = DateTime.Now
+                ReportId = report.ReportId,
+                FileName = Path.GetFileName(f.FileName),
+                MimeType = f.ContentType,
+                StorageKey = key,
+                SizeBytes = (int)f.Length,
+                UploadedBy = executorId,
+                UploadedAt = DateTime.Now
             });
         }
         await DbErrors.Run(_attachments.SaveAsync);
@@ -140,15 +149,24 @@ public class ImplementationService
 
         var impl = new Implementation
         {
-            ProjectId = dto.ProjectId, ContractorId = dto.ContractorId, PlannedBudget = dto.PlannedBudget,
-            StartDate = dto.StartDate, PlannedEndDate = dto.PlannedEndDate, Status = "planned",
-            CreatedBy = adminId, CreatedAt = DateTime.Now
+            ProjectId = dto.ProjectId,
+            ContractorId = dto.ContractorId,
+            PlannedBudget = dto.PlannedBudget,
+            StartDate = dto.StartDate,
+            PlannedEndDate = dto.PlannedEndDate,
+            Status = "planned",
+            CreatedBy = adminId,
+            CreatedAt = DateTime.Now
         };
         byte no = 1;
         foreach (var s in dto.Stages)
             impl.ImplementationStages.Add(new ImplementationStage
             {
-                StageNo = no++, Name = s.Name.Trim(), PlannedEndDate = s.PlannedEndDate, PlannedCost = s.PlannedCost, Status = "planned"
+                StageNo = no++,
+                Name = s.Name.Trim(),
+                PlannedEndDate = s.PlannedEndDate,
+                PlannedCost = s.PlannedCost,
+                Status = "planned"
             });
         _impl.Add(impl);
         project.Status = "implementing";        // тригер TR_Project_StatusChange: аудит + сповіщення підписникам

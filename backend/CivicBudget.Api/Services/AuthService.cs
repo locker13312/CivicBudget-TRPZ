@@ -21,7 +21,7 @@ public class AuthService
     public const int MaxFailedAttempts = 5;
     private static readonly string[] TwoFactorRoles = { Roles.Moderator, Roles.Expert, Roles.Admin };
 
-    /// <summary>Лічильник невдалих спроб — у пам'яті (окремої колонки в схемі немає).</summary>
+    // Лічильник невдалих спроб — у пам'яті (окремої колонки в схемі немає).
     private static readonly ConcurrentDictionary<int, int> FailedAttempts = new();
 
     private readonly IUserRepository _users;

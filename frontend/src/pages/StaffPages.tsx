@@ -205,7 +205,6 @@ export function ModerationPage() {
               {t('Перевірити')}
             </Button>
           )}
-          {/* контекстне меню рядка */}
           <Dropdown
             trigger={['click']}
             menu={{

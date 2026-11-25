@@ -85,8 +85,13 @@ public class VotingService
         var now = DateTime.Now;
         _votes.AddRange(items.Select(i => new Vote
         {
-            VoterId = dto.VoterId, ProjectId = i.ProjectId, VoteCount = (byte)Math.Min(i.Count, 255),
-            Channel = "paper", StationId = dto.StationId, OperatorId = operatorId, CastAt = now
+            VoterId = dto.VoterId,
+            ProjectId = i.ProjectId,
+            VoteCount = (byte)Math.Min(i.Count, 255),
+            Channel = "paper",
+            StationId = dto.StationId,
+            OperatorId = operatorId,
+            CastAt = now
         }));
 
         await DbErrors.Run(_votes.SaveAsync);
@@ -94,6 +99,6 @@ public class VotingService
         return items.Sum(i => i.Count);
     }
 
-    /// <summary>SignalR: усі відкриті сторінки результатів і карток оновлюють лічильники.</summary>
+    // SignalR: усі відкриті сторінки результатів і карток оновлюють лічильники.
     private Task NotifyAsync(int projectId) => _hub.Clients.All.SendAsync("votesChanged", projectId);
 }

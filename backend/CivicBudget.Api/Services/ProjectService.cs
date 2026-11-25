@@ -134,7 +134,10 @@ public class ProjectService
         foreach (var item in dto.BudgetItems)
             p.BudgetItems.Add(new BudgetItem
             {
-                Name = item.Name.Trim(), Unit = item.Unit.Trim(), Quantity = item.Quantity, UnitPrice = item.UnitPrice
+                Name = item.Name.Trim(),
+                Unit = item.Unit.Trim(),
+                Quantity = item.Quantity,
+                UnitPrice = item.UnitPrice
             });
     }
 
@@ -195,8 +198,13 @@ public class ProjectService
         var key = await _files.SaveAsync(file, $"projects/{projectId}");
         var attachment = new Attachment
         {
-            ProjectId = projectId, FileName = Path.GetFileName(file.FileName), MimeType = file.ContentType,
-            StorageKey = key, SizeBytes = (int)file.Length, UploadedBy = authorId, UploadedAt = DateTime.Now
+            ProjectId = projectId,
+            FileName = Path.GetFileName(file.FileName),
+            MimeType = file.ContentType,
+            StorageKey = key,
+            SizeBytes = (int)file.Length,
+            UploadedBy = authorId,
+            UploadedAt = DateTime.Now
         };
         _attachments.Add(attachment);
         try
@@ -288,8 +296,12 @@ public class ProjectService
 
         _projects.AddReview(new Review
         {
-            ProjectId = projectId, ReviewerId = moderatorId, ReviewType = "moderation",
-            Decision = decision, Comment = comment, CreatedAt = DateTime.Now
+            ProjectId = projectId,
+            ReviewerId = moderatorId,
+            ReviewType = "moderation",
+            Decision = decision,
+            Comment = comment,
+            CreatedAt = DateTime.Now
         });
         project.ModeratorId = moderatorId;
         project.Status = newStatus;
@@ -338,8 +350,12 @@ public class ProjectService
 
         _projects.AddReview(new Review
         {
-            ProjectId = projectId, ReviewerId = expertId, ReviewType = dto.ReviewType,
-            Decision = dto.Decision, Comment = comment, CreatedAt = DateTime.Now
+            ProjectId = projectId,
+            ReviewerId = expertId,
+            ReviewType = dto.ReviewType,
+            Decision = dto.Decision,
+            Comment = comment,
+            CreatedAt = DateTime.Now
         });
         project.Status = newStatus;
         project.UpdatedAt = DateTime.Now;

@@ -56,6 +56,11 @@ builder.Services.AddRateLimiter(o =>
 
 // ---------- JWT ----------
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()!;
+// Ключ підпису не зберігається в репозиторії: dotnet user-secrets (розробка) або змінна середовища Jwt__Key.
+if (string.IsNullOrWhiteSpace(jwt.Key) || jwt.Key.Length < 32)
+    throw new InvalidOperationException(
+        "Не задано Jwt:Key (мінімум 32 символи). Виконайте: dotnet user-secrets set \"Jwt:Key\" \"<випадковий рядок>\" " +
+        "у папці CivicBudget.Api або задайте змінну середовища Jwt__Key.");
 var tokenService = new JwtTokenService(jwt);
 builder.Services.AddSingleton(jwt);
 builder.Services.AddSingleton(tokenService);

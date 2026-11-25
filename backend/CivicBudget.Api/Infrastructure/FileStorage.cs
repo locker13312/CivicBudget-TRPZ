@@ -59,7 +59,7 @@ public class FileStorage
         if (File.Exists(path)) File.Delete(path);
     }
 
-    /// <summary>Шлях усередині кореня сховища (захист від «../» у ключі).</summary>
+    // Шлях усередині кореня сховища (захист від «../» у ключі).
     private string FullPath(string storageKey)
     {
         var path = Path.GetFullPath(Path.Combine(_root, storageKey.Replace('/', Path.DirectorySeparatorChar)));

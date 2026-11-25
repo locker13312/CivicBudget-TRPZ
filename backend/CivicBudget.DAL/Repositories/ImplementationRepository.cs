@@ -39,10 +39,7 @@ public class ImplementationRepository : IImplementationRepository
     private readonly CivicBudgetContext _db;
     public ImplementationRepository(CivicBudgetContext db) => _db = db;
 
-    /// <summary>
-    /// «Хід реалізації»: join картки з уявленням прогресу, проєктом і підрядником (синтаксис запитів LINQ).
-    /// Фільтри (кампанія, підрядник, картка) застосовуються до join, ще до проєкції в модель.
-    /// </summary>
+    // «Хід реалізації»: join картки з уявленням прогресу, проєктом і підрядником (синтаксис запитів LINQ). Фільтри (кампанія, підрядник, картка) застосовуються до join, ще до проєкції в модель.
     private IQueryable<ImplementationListItem> ListQuery(short? campaignId = null, int? contractorId = null, int? implementationId = null) =>
         from i in _db.Implementations
         join v in _db.VwImplementationProgresses on i.ImplementationId equals v.ImplementationId

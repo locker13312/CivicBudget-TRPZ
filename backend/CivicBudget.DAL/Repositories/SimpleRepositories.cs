@@ -110,7 +110,10 @@ public class UserRepository : IUserRepository
 
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId = assignedBy, ActionCode = "user_roles", EntityName = "UserAccount", EntityId = userId,
+            UserId = assignedBy,
+            ActionCode = "user_roles",
+            EntityName = "UserAccount",
+            EntityId = userId,
             Details = "ролі: " + string.Join(", ", roles.Select(r => r.Code))
         });
         await _db.SaveChangesAsync();
@@ -122,7 +125,10 @@ public class UserRepository : IUserRepository
         user.TwoFactorEnabled = enabled;
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId = byUserId, ActionCode = enabled ? "user_2fa_on" : "user_2fa_off", EntityName = "UserAccount", EntityId = userId
+            UserId = byUserId,
+            ActionCode = enabled ? "user_2fa_on" : "user_2fa_off",
+            EntityName = "UserAccount",
+            EntityId = userId
         });
         await _db.SaveChangesAsync();
     }
@@ -138,7 +144,10 @@ public class UserRepository : IUserRepository
         await _db.SaveChangesAsync();
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId = user.UserId, ActionCode = "register", EntityName = "UserAccount", EntityId = user.UserId,
+            UserId = user.UserId,
+            ActionCode = "register",
+            EntityName = "UserAccount",
+            EntityId = user.UserId,
             Details = "реєстрація через " + user.VerificationMethod
         });
         await _db.SaveChangesAsync();
@@ -151,7 +160,10 @@ public class UserRepository : IUserRepository
         user.IsBlocked = true;
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId = null, ActionCode = "user_autoblock", EntityName = "UserAccount", EntityId = userId,
+            UserId = null,
+            ActionCode = "user_autoblock",
+            EntityName = "UserAccount",
+            EntityId = userId,
             Details = $"{attempts} невдалих спроб входу поспіль"
         });
         await _db.SaveChangesAsync();
@@ -170,7 +182,10 @@ public class UserRepository : IUserRepository
         user.IsBlocked = isBlocked;
         _db.AuditLogs.Add(new AuditLog
         {
-            UserId = byUserId, ActionCode = isBlocked ? "user_block" : "user_unblock", EntityName = "UserAccount", EntityId = userId
+            UserId = byUserId,
+            ActionCode = isBlocked ? "user_block" : "user_unblock",
+            EntityName = "UserAccount",
+            EntityId = userId
         });
         await _db.SaveChangesAsync();
     }
