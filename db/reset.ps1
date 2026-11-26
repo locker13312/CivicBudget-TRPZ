@@ -16,7 +16,14 @@ Write-Host 'CivicBudget_demo.sql — OK'
 # файли вкладень (Attachment.StorageKey) — у папці uploads/ бекенду; листи-імітації — у mail-outbox/
 $uploads = Join-Path $api 'uploads'
 $outbox = Join-Path $api 'mail-outbox'
-foreach ($d in $uploads, $outbox) { if (Test-Path $d) { Remove-Item -Recurse -Force $d } }
-New-Item -ItemType Directory -Force $uploads, $outbox | Out-Null
+
+# вкладення мають точно відповідати демо-даним, тому uploads/ перестворюємо повністю
+if (Test-Path $uploads) { Remove-Item -Recurse -Force $uploads }
+New-Item -ItemType Directory -Force $uploads | Out-Null
 Copy-Item -Recurse -Force (Join-Path $dir 'demo-files\*') $uploads
 Write-Host "Демо-файли скопійовано в $uploads"
+
+# старі листи лише прибираємо; файл, відкритий у редакторі чи Провіднику, не повинен зривати скидання
+New-Item -ItemType Directory -Force $outbox | Out-Null
+Get-ChildItem $outbox -File | Remove-Item -Force -ErrorAction SilentlyContinue
+Write-Host "Папку листів очищено: $outbox"
