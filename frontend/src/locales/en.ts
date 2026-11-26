@@ -134,6 +134,10 @@ export const en: Record<string, string> = {
   "Солом'янський": 'Solomianskyi',
   Шевченківський: 'Shevchenkivskyi',
 
+  'Зараз немає оголошеної кампанії': 'No campaign has been announced yet',
+  'Нову кампанію готує адміністратор. Тим часом можна переглянути результати й хід реалізації минулих кампаній.':
+    'The administrator is preparing a new campaign. Meanwhile you can browse the results and implementation of past campaigns.',
+
   // ---------- головна ----------
   'Етапи кампанії': 'Campaign stages',
   'Мешканці пропонують проєкти для свого міста й голосують за найкращі. Переможці реалізуються коштом міського бюджету.':

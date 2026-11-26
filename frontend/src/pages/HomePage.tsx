@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { campaignStatusOrder, formatDate, formatMoney } from '../api/labels'
 import type { Campaign, PagedResult, ProjectListItem } from '../api/types'
-import { CampaignTag, LoadState, PageTitle, useLoad } from '../components/common'
+import { CampaignTag, LoadState, NoCampaign, PageTitle, useLoad } from '../components/common'
 import { ProjectCard } from '../components/ProjectCard'
 
 /** Етапи кампанії зі строками — для шкали на головній. */
@@ -37,7 +37,8 @@ function stages(c: Campaign) {
 
 export function HomePage() {
   const { data, loading, error } = useLoad(async () => {
-    const campaign = await api<Campaign>('/api/campaigns/current')
+    const campaign = await api<Campaign>('/api/campaigns/current').catch(() => null)
+    if (!campaign) return { campaign: null, top: null }
     const top = await api<PagedResult<ProjectListItem>>(
       `/api/projects?campaignId=${campaign.campaignId}&sort=votes&pageSize=3`,
     )
@@ -46,7 +47,8 @@ export function HomePage() {
 
   return (
     <LoadState loading={loading} error={error}>
-      {data && <Home campaign={data.campaign} top={data.top} />}
+      {data && !data.campaign && <NoCampaign />}
+      {data?.campaign && data.top && <Home campaign={data.campaign} top={data.top} />}
     </LoadState>
   )
 }

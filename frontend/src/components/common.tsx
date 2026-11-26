@@ -8,6 +8,7 @@ import {
 import { App, Alert, Button, Dropdown, Flex, Result, Skeleton, Space, Tag, Tooltip, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { ApiError, download } from '../api/client'
 import { campaignStatus, projectStatus } from '../api/labels'
 import { categoryColor, statusColor } from '../theme'
@@ -164,6 +165,33 @@ export function LoadState({
 
 export function ErrorAlert({ error }: { error: string | null }) {
   return error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null
+}
+
+/**
+ * Немає поточної кампанії: усі кампанії в підготовці або закриті.
+ * Кампанія в підготовці ще не оголошена мешканцям, тому поточною не вважається.
+ */
+export function NoCampaign() {
+  const { t } = useTranslation()
+  return (
+    <Result
+      status="info"
+      title={t('Зараз немає оголошеної кампанії')}
+      subTitle={t(
+        'Нову кампанію готує адміністратор. Тим часом можна переглянути результати й хід реалізації минулих кампаній.',
+      )}
+      extra={
+        <Space wrap>
+          <Link to="/results">
+            <Button type="primary">{t('Результати')}</Button>
+          </Link>
+          <Link to="/implementation">
+            <Button>{t('Хід реалізації')}</Button>
+          </Link>
+        </Space>
+      }
+    />
+  )
 }
 
 /** Обкладинка проєкту: перше фото або кольорова плашка категорії. */

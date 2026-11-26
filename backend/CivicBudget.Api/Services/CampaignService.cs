@@ -35,13 +35,20 @@ public class CampaignService
 
     public Task<List<CampaignModel>> GetAllAsync() => _campaigns.GetAllAsync();
 
+    // Без явного вибору — поточна кампанія; якщо всі в підготовці чи закриті — найновіша (архів результатів).
+    private async Task<CampaignModel> ResolveAsync(short? campaignId) =>
+        campaignId.HasValue
+            ? await GetAsync(campaignId.Value)
+            : await _campaigns.GetCurrentAsync()
+              ?? (await _campaigns.GetAllAsync()).FirstOrDefault()
+              ?? throw new KeyNotFoundException("Кампанію не знайдено.");
+
     public async Task<CampaignModel> GetAsync(short id) =>
         await _campaigns.GetModelAsync(id) ?? throw new KeyNotFoundException("Кампанію не знайдено.");
 
     public async Task<ResultsResponse> GetResultsAsync(short? campaignId)
     {
-        var campaign = campaignId.HasValue ? await GetAsync(campaignId.Value)
-            : await _campaigns.GetCurrentAsync() ?? throw new KeyNotFoundException("Кампанію не знайдено.");
+        var campaign = await ResolveAsync(campaignId);
 
         var rows = await _projects.GetResultsAsync(campaign.CampaignId);
         // до завершення голосування проміжні результати показуються лише якщо це дозволено параметром кампанії
@@ -142,8 +149,7 @@ public class CampaignService
 
     public async Task<StatisticsResponse> GetStatisticsAsync(short? campaignId)
     {
-        var campaign = campaignId.HasValue ? await GetAsync(campaignId.Value)
-            : await _campaigns.GetCurrentAsync() ?? throw new KeyNotFoundException("Кампанію не знайдено.");
+        var campaign = await ResolveAsync(campaignId);
         var id = campaign.CampaignId;
         return new StatisticsResponse(campaign,
             await _stats.GetSummaryAsync(id),

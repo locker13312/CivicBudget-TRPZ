@@ -44,7 +44,7 @@ import type {
   SimilarProject,
   SubmitResult,
 } from '../api/types'
-import { LoadState, PageTitle, StatusTag, useLoad } from '../components/common'
+import { LoadState, NoCampaign, PageTitle, StatusTag, useLoad } from '../components/common'
 import { PointPicker } from '../components/ProjectMap'
 
 interface FormValues {
@@ -64,14 +64,14 @@ export function ProjectFormPage() {
   const { t } = useTranslation()
   const { id } = useParams()
   const isNew = !id || id === 'new'
-  const { data, loading, error, setData } = useLoad(
-    async () => ({
-      refs: await api<References>('/api/reference'),
-      campaign: await api<Campaign>('/api/campaigns/current'),
-      edit: isNew ? null : await api<ProjectForEdit>(`/api/my/projects/${id}`),
-    }),
-    [id],
-  )
+  const { data, loading, error, setData } = useLoad(async () => {
+    const edit = isNew ? null : await api<ProjectForEdit>(`/api/my/projects/${id}`)
+    // наявний проєкт показуємо з його кампанією; новий створюється лише в поточній
+    const campaign = edit
+      ? await api<Campaign>(`/api/campaigns/${edit.project.campaignId}`)
+      : await api<Campaign>('/api/campaigns/current').catch(() => null)
+    return { refs: await api<References>('/api/reference'), campaign, edit }
+  }, [id])
 
   return (
     <>
@@ -80,7 +80,8 @@ export function ProjectFormPage() {
       </Link>
       <div style={{ height: 12 }} />
       <LoadState loading={loading} error={error}>
-        {data && (
+        {data && !data.campaign && <NoCampaign />}
+        {data?.campaign && (
           <ProjectForm
             key={id}
             refs={data.refs}

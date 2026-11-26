@@ -21,14 +21,15 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { formatDate, formatMoney, verificationNames } from '../api/labels'
 import type { Campaign, PagedResult, ProjectListItem, References, UserRow } from '../api/types'
-import { LoadState, PageTitle, useLoad } from '../components/common'
+import { LoadState, NoCampaign, PageTitle, useLoad } from '../components/common'
 
 /** Оператор пункту голосування: внесення паперового бюлетеня (виборець, пункт, проєкти й кількість голосів). */
 export function OperatorPage() {
   const { t } = useTranslation()
   const { message } = App.useApp()
   const base = useLoad(async () => {
-    const campaign = await api<Campaign>('/api/campaigns/current')
+    const campaign = await api<Campaign>('/api/campaigns/current').catch(() => null)
+    if (!campaign) return null
     return {
       campaign,
       refs: await api<References>('/api/reference'),
@@ -96,7 +97,9 @@ export function OperatorPage() {
     <>
       <PageTitle title={t('Паперовий бюлетень')} subtitle={c?.name} help="operator" />
       <LoadState loading={base.loading} error={base.error}>
-        {done ? (
+        {!base.loading && !base.data ? (
+          <NoCampaign />
+        ) : done ? (
           <Card>
             <Result
               status="success"
