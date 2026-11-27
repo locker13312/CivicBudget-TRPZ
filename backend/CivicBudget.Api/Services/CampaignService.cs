@@ -157,39 +157,39 @@ public class CampaignService
         else if (target != from + 1)
             blocker = "Етапи перемикаються лише по черзі, без пропусків.";
         else switch (to)
-        {
-            case "submission":
-                consequences.Add($"Мешканці зможуть подавати проєкти до {D(c.SubmissionEnd)}.");
-                if (c.Categories.Count == 0) warnings.Add("Не задано жодного ліміту категорій — подати проєкт буде нікуди.");
-                break;
-            case "review":
-                consequences.Add("Прийом нових проєктів закриється, модератори й експерти розглядають подані.");
-                if (N("draft") > 0) warnings.Add($"Неподаних чернеток: {N("draft")}. Подати їх після цього буде неможливо.");
-                if (today <= c.SubmissionEnd) warnings.Add($"За параметрами кампанії подання триває до {D(c.SubmissionEnd)}.");
-                break;
-            case "voting":
-                consequences.Add($"Опубліковані проєкти ({N("published")}) стануть доступні для голосування.");
-                if (N("submitted", "moderation", "expertise", "revision") > 0)
-                    warnings.Add($"Ще не розглянуто проєктів: {N("submitted", "moderation", "expertise", "revision")}. До голосування вони не потраплять.");
-                if (today < c.VotingStart || today > c.VotingEnd)
-                    warnings.Add($"Онлайн-голоси приймаються лише в дати голосування ({D(c.VotingStart)} — {D(c.VotingEnd)}), поза ними база даних їх відхилить.");
-                break;
-            case "counting":
-                consequences.Add("Онлайн-голосування закриється. Оператори ще можуть вносити паперові бюлетені.");
-                consequences.Add("Повернутися до голосування після цього не можна.");
-                if (today <= c.VotingEnd) warnings.Add($"За параметрами кампанії голосування триває до {D(c.VotingEnd)}.");
-                break;
-            case "implementation":
-                blocker = "Етап «Реалізація» настає після кнопки «Визначити переможців»: вона підраховує голоси й відбирає проєкти.";
-                break;
-            case "closed":
-                consequences.Add("Кампанія потрапить в архів; результати й хід реалізації лишаться доступними.");
-                var usage = await _stats.GetBudgetUsageAsync(id);
-                if (usage.Implementations > usage.Completed)
-                    warnings.Add($"Незавершених реалізацій: {usage.Implementations - usage.Completed}.");
-                if (N("winner") > 0) warnings.Add($"Переможців без картки реалізації: {N("winner")}.");
-                break;
-        }
+            {
+                case "submission":
+                    consequences.Add($"Мешканці зможуть подавати проєкти до {D(c.SubmissionEnd)}.");
+                    if (c.Categories.Count == 0) warnings.Add("Не задано жодного ліміту категорій — подати проєкт буде нікуди.");
+                    break;
+                case "review":
+                    consequences.Add("Прийом нових проєктів закриється, модератори й експерти розглядають подані.");
+                    if (N("draft") > 0) warnings.Add($"Неподаних чернеток: {N("draft")}. Подати їх після цього буде неможливо.");
+                    if (today <= c.SubmissionEnd) warnings.Add($"За параметрами кампанії подання триває до {D(c.SubmissionEnd)}.");
+                    break;
+                case "voting":
+                    consequences.Add($"Опубліковані проєкти ({N("published")}) стануть доступні для голосування.");
+                    if (N("submitted", "moderation", "expertise", "revision") > 0)
+                        warnings.Add($"Ще не розглянуто проєктів: {N("submitted", "moderation", "expertise", "revision")}. До голосування вони не потраплять.");
+                    if (today < c.VotingStart || today > c.VotingEnd)
+                        warnings.Add($"Онлайн-голоси приймаються лише в дати голосування ({D(c.VotingStart)} — {D(c.VotingEnd)}), поза ними база даних їх відхилить.");
+                    break;
+                case "counting":
+                    consequences.Add("Онлайн-голосування закриється. Оператори ще можуть вносити паперові бюлетені.");
+                    consequences.Add("Повернутися до голосування після цього не можна.");
+                    if (today <= c.VotingEnd) warnings.Add($"За параметрами кампанії голосування триває до {D(c.VotingEnd)}.");
+                    break;
+                case "implementation":
+                    blocker = "Етап «Реалізація» настає після кнопки «Визначити переможців»: вона підраховує голоси й відбирає проєкти.";
+                    break;
+                case "closed":
+                    consequences.Add("Кампанія потрапить в архів; результати й хід реалізації лишаться доступними.");
+                    var usage = await _stats.GetBudgetUsageAsync(id);
+                    if (usage.Implementations > usage.Completed)
+                        warnings.Add($"Незавершених реалізацій: {usage.Implementations - usage.Completed}.");
+                    if (N("winner") > 0) warnings.Add($"Переможців без картки реалізації: {N("winner")}.");
+                    break;
+            }
         return new StageTransitionCheck(c.Status, to, blocker == null, blocker, consequences, warnings);
     }
 

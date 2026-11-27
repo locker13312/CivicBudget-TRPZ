@@ -5,8 +5,10 @@
 | Файл | Призначення |
 |---|---|
 | `CivicBudget_create.sql` | створює БД з нуля (перезапускається: видаляє наявну) — таблиці, індекси, уявлення, тригери, процедури, довідники |
+| `CivicBudget_v2_extensions.sql` | функції користувача (запускати після create і перед demo); таблиці не змінює |
 | `CivicBudget_demo.sql` | демо-дані; дати рахуються від `GETDATE()`; наприкінці — перевірка 6 навмисних порушень і кількість рядків у таблицях |
-| `reset.ps1` / `reset.bat` | create + demo + копіювання демо-файлів у `uploads/` |
+| `defense_demo.sql` | показ представлень, функцій, тригерів і процедур у SSMS; усе в `BEGIN TRAN … ROLLBACK`, дані не змінюються |
+| `reset.ps1` / `reset.bat` | create + extensions + demo + копіювання демо-файлів у `uploads/` |
 | `demo-files/` | фото й PDF для демо-вкладень |
 
 Підключення `sqlcmd`, коли служба SQL Browser вимкнена:
@@ -32,6 +34,13 @@ sqlcmd -S "np:\\.\pipe\MSSQL$SQLEXPRESS\sql\query" -E -C -d CivicBudget
 | `TR_Project_StatusChange` | AFTER UPDATE на `Project` | пише зміну статусу в `AuditLog` і створює сповіщення автору та підписникам |
 
 **Процедури:** `usp_SubmitProject @ProjectId` — подання (номер GB-рік-NNNN), `usp_SelectWinners @CampaignId` — переможці в межах лімітів категорій.
+
+**Функції** (`CivicBudget_v2_extensions.sql`):
+
+| Функція | Тип | Повертає | Хто використовує |
+|---|---|---|---|
+| `dbo.fn_RemainingVotes(@VoterId, @CampaignId)` | скалярна | скільки голосів виборець ще може віддати (рахує так само, як `TR_Vote_CheckRules`) | лічильник на сторінці голосування, пошук виборця оператором |
+| `dbo.fn_CategoryBudgetBalance(@CampaignId)` | таблична (inline) | ліміт, використано на переможців, залишок і кількість переможців кожної категорії | рейтинг і переможці (адміністратор, сторінка «Результати») |
 
 ## Коди помилок
 

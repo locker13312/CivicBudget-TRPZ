@@ -25,6 +25,7 @@ public class FilesController : ControllerBase
         _user = user;
     }
 
+    /// <summary>Файл вкладення (фото, PDF); непублічні файли — лише власнику й працівникам.</summary>
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get(int id)
     {
@@ -50,9 +51,11 @@ public class ImplementationsController : ControllerBase
     private readonly ImplementationService _impl;
     public ImplementationsController(ImplementationService impl) => _impl = impl;
 
+    /// <summary>Хід реалізації проєктів-переможців: план/факт з vw_ImplementationProgress.</summary>
     [HttpGet]
     public Task<List<ImplementationListItem>> List([FromQuery] short? campaignId) => _impl.GetPublicListAsync(campaignId);
 
+    /// <summary>Картка реалізації: етапи, план/факт, прийняті звіти виконавця.</summary>
     [HttpGet("{id:int}")]
     public Task<ImplementationDetails> Get(int id) => _impl.GetPublicDetailsAsync(id);
 }
@@ -72,12 +75,15 @@ public class ExecutorController : ControllerBase
         _user = user;
     }
 
+    /// <summary>Картки реалізації підрядника, до якого прив’язано виконавця.</summary>
     [HttpGet("implementations")]
     public Task<List<ImplementationListItem>> List() => _impl.GetExecutorListAsync(_user.RequireUserId());
 
+    /// <summary>Картка реалізації для виконавця: етапи і всі його звіти.</summary>
     [HttpGet("implementations/{id:int}")]
     public Task<ImplementationDetails> Get(int id) => _impl.GetExecutorDetailsAsync(id, _user.RequireUserId());
 
+    /// <summary>Змінити статус етапу; «виконано» — лише з фактичними витратами.</summary>
     [HttpPut("stages/{stageId:int}")]
     public async Task<MessageResponse> UpdateStage(int stageId, StageUpdateDto dto)
     {
@@ -109,9 +115,11 @@ public class AdminImplementationsController : ControllerBase
         _user = user;
     }
 
+    /// <summary>Усі картки реалізації з кількістю звітів, що чекають на розгляд.</summary>
     [HttpGet]
     public Task<List<ImplementationListItem>> List() => _impl.GetAdminListAsync();
 
+    /// <summary>Картка реалізації для адміністратора.</summary>
     [HttpGet("{id:int}")]
     public Task<ImplementationDetails> Get(int id) => _impl.GetAdminDetailsAsync(id);
 
@@ -123,10 +131,12 @@ public class AdminImplementationsController : ControllerBase
         contractors = await _impl.GetContractorsAsync()
     };
 
+    /// <summary>Створити картку реалізації для переможця: підрядник, бюджет, строки, етапи.</summary>
     [HttpPost]
     public async Task<object> Create(ImplementationCreateDto dto) =>
         new { implementationId = await _impl.CreateAsync(dto, _user.RequireUserId()) };
 
+    /// <summary>Змінити статус реалізації; «завершено» — коли всі етапи виконано.</summary>
     [HttpPost("{id:int}/status")]
     public async Task<MessageResponse> SetStatus(int id, ImplementationStatusDto dto)
     {
@@ -134,6 +144,7 @@ public class AdminImplementationsController : ControllerBase
         return new MessageResponse("Статус реалізації змінено.");
     }
 
+    /// <summary>Звіти виконавців, що чекають на прийняття.</summary>
     [HttpGet("reports/pending")]
     public Task<List<PendingReport>> Pending() => _impl.GetPendingReportsAsync();
 

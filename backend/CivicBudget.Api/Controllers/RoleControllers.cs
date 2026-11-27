@@ -1,7 +1,7 @@
 using CivicBudget.Api.Auth;
 using CivicBudget.Api.Dto;
-using CivicBudget.Api.Services;
 using CivicBudget.Api.Infrastructure;
+using CivicBudget.Api.Services;
 using CivicBudget.DAL.Models;
 using CivicBudget.DAL.Repositories;
 using Microsoft.AspNetCore.Authorization;
@@ -24,9 +24,11 @@ public class MyProjectsController : ControllerBase
         _user = user;
     }
 
+    /// <summary>Усі проєкти автора з поточними статусами й коментарем модератора.</summary>
     [HttpGet]
     public Task<List<ProjectListItem>> Mine() => _projects.GetMineAsync(_user.RequireUserId());
 
+    /// <summary>Проєкт автора для редагування: чи можна змінювати і коментар доопрацювання.</summary>
     [HttpGet("{id:int}")]
     public Task<ProjectForEdit> Get(int id) => _projects.GetForEditAsync(id, _user.RequireUserId());
 
@@ -58,6 +60,7 @@ public class MyProjectsController : ControllerBase
     public Task<AttachmentModel> Upload(int id, IFormFile file) =>
         _projects.AddAttachmentAsync(id, _user.RequireUserId(), file);
 
+    /// <summary>Видалити вкладення з чернетки або проєкту на доопрацюванні.</summary>
     [HttpDelete("{id:int}/attachments/{attachmentId:int}")]
     public async Task<IActionResult> DeleteAttachment(int id, int attachmentId)
     {
@@ -81,6 +84,7 @@ public class ModerationController : ControllerBase
         _user = user;
     }
 
+    /// <summary>Черга модерації: подані, на модерації, допущені до публікації; перелік модераторів.</summary>
     [HttpGet("queue")]
     public Task<ModerationQueue> Queue() => _projects.GetModerationQueueAsync();
 
@@ -104,6 +108,7 @@ public class ModerationController : ControllerBase
     [HttpGet("{id:int}/similar")]
     public Task<List<SimilarProject>> Similar(int id) => _projects.FindSimilarAsync(id, null, null, null);
 
+    /// <summary>Опублікувати допущений проєкт — він з’являється в каталозі й бере участь у голосуванні.</summary>
     [HttpPost("{id:int}/publish")]
     public async Task<MessageResponse> Publish(int id)
     {
@@ -127,9 +132,11 @@ public class ExpertiseController : ControllerBase
         _user = user;
     }
 
+    /// <summary>Проєкти, передані на експертизу.</summary>
     [HttpGet]
     public Task<List<ProjectListItem>> Queue() => _projects.GetExpertiseQueueAsync();
 
+    /// <summary>Висновок експерта: вид (technical / legal / financial) і рішення.</summary>
     [HttpPost("{id:int}/conclusion")]
     public async Task<MessageResponse> Conclude(int id, ExpertConclusionDto dto)
     {
@@ -193,6 +200,7 @@ public class OperatorController : ControllerBase
         return await _voting.FindVotersAsync(name, birthDate);
     }
 
+    /// <summary>Внести паперовий бюлетень: виборець, пункт, голоси за проєкти (правила перевіряє тригер).</summary>
     [HttpPost("ballots")]
     public async Task<MessageResponse> Ballot(PaperBallotDto dto)
     {
@@ -220,10 +228,12 @@ public class AdminController : ControllerBase
         _user = user;
     }
 
+    /// <summary>Створити кампанію (етап «Підготовка») з параметрами й лімітами категорій.</summary>
     [HttpPost("campaigns")]
     public async Task<object> CreateCampaign(CampaignEditDto dto) =>
         new { campaignId = await _campaigns.CreateAsync(dto, _user.RequireUserId()) };
 
+    /// <summary>Змінити параметри кампанії, строки етапів і ліміти категорій.</summary>
     [HttpPut("campaigns/{id}")]
     public async Task<MessageResponse> UpdateCampaign(short id, CampaignEditDto dto)
     {
@@ -251,6 +261,7 @@ public class AdminController : ControllerBase
     [HttpGet("campaigns/{id}/rating")]
     public Task<RatingResponse> Rating(short id) => _campaigns.GetRatingAsync(id);
 
+    /// <summary>Користувачі з пошуком і сторінками; перегляд записується в журнал як доступ до персональних даних.</summary>
     [HttpGet("users")]
     public async Task<PagedResult<UserRow>> Users([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 15)
     {
@@ -271,6 +282,7 @@ public class AdminController : ControllerBase
         return new MessageResponse(dto.Enabled ? "Двофакторну автентифікацію увімкнено." : "Двофакторну автентифікацію вимкнено.");
     }
 
+    /// <summary>Призначити ролі користувачу (RBAC, таблиця UserRole).</summary>
     [HttpPut("users/{id:int}/roles")]
     public async Task<MessageResponse> SetRoles(int id, UserRolesDto dto)
     {
@@ -278,6 +290,7 @@ public class AdminController : ControllerBase
         return new MessageResponse("Ролі оновлено.");
     }
 
+    /// <summary>Заблокувати або розблокувати користувача.</summary>
     [HttpPut("users/{id:int}/block")]
     public async Task<MessageResponse> Block(int id, UserBlockDto dto)
     {

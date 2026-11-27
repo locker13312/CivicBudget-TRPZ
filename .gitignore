@@ -13,3 +13,4 @@ backend/CivicBudget.Api/mail-outbox/
 .certs/
 *.log
 
+*.zip

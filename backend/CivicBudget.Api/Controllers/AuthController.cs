@@ -62,6 +62,7 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     public Task<AuthResponse> Refresh(RefreshRequest request) => _auth.RefreshAsync(request.RefreshToken);
 
+    /// <summary>Поточний користувач: ПІБ, ролі, стан верифікації.</summary>
     [Authorize]
     [HttpGet("me")]
     public Task<UserInfo> Me() => _auth.MeAsync(_currentUser.RequireUserId());

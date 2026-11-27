@@ -16,6 +16,7 @@ public class ReferenceController : ControllerBase
     private readonly IReferenceRepository _refs;
     public ReferenceController(IReferenceRepository refs) => _refs = refs;
 
+    /// <summary>Довідники: категорії, райони, пункти голосування, ролі.</summary>
     [HttpGet]
     public async Task<object> Get() => new
     {
@@ -39,9 +40,11 @@ public class CampaignsController : ControllerBase
     public async Task<ActionResult<CampaignModel>> Current() =>
         await _campaigns.GetCurrentAsync() is { } c ? c : NotFound(new MessageResponse("Активної кампанії немає."));
 
+    /// <summary>Усі кампанії (архів минулих і поточна).</summary>
     [HttpGet]
     public Task<List<CampaignModel>> All() => _campaigns.GetAllAsync();
 
+    /// <summary>Кампанія з етапами, правилами голосування й лімітами категорій.</summary>
     [HttpGet("{id}")]
     public Task<CampaignModel> Get(short id) => _campaigns.GetAsync(id);
 
@@ -86,6 +89,7 @@ public class ProjectsController : ControllerBase
     [HttpGet("map")]
     public Task<List<MapPoint>> Map([FromQuery] ProjectFilter filter) => _projects.GetMapPointsAsync(filter);
 
+    /// <summary>Картка проєкту: опис, кошторис, голоси, рецензії, вкладення, точка на карті.</summary>
     [HttpGet("{id:int}")]
     public Task<ProjectDetails> Get(int id)
     {
@@ -102,6 +106,7 @@ public class ProjectsController : ControllerBase
         return _projects.GetStatusHistoryAsync(id, _user.RequireUserId(), staff);
     }
 
+    /// <summary>Чи стежить поточний користувач за проєктом.</summary>
     [Authorize]
     [HttpGet("{id:int}/subscription")]
     public async Task<object> IsSubscribed(int id) =>
@@ -116,6 +121,7 @@ public class ProjectsController : ControllerBase
         return new { subscribed = true };
     }
 
+    /// <summary>Відписатися від сповіщень про проєкт.</summary>
     [Authorize]
     [HttpDelete("{id:int}/subscription")]
     public async Task<object> Unsubscribe(int id)
@@ -140,12 +146,15 @@ public class NotificationsController : ControllerBase
         _user = user;
     }
 
+    /// <summary>Останні сповіщення користувача (створює тригер TR_Project_StatusChange).</summary>
     [HttpGet]
     public Task<List<NotificationModel>> Get() => _notifications.GetForUserAsync(_user.RequireUserId());
 
+    /// <summary>Кількість непрочитаних сповіщень (лічильник у шапці).</summary>
     [HttpGet("unread-count")]
     public async Task<object> Unread() => new { count = await _notifications.CountUnreadAsync(_user.RequireUserId()) };
 
+    /// <summary>Позначити сповіщення прочитаним.</summary>
     [HttpPost("{id:long}/read")]
     public async Task<IActionResult> Read(long id)
     {
@@ -153,6 +162,7 @@ public class NotificationsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Позначити всі сповіщення прочитаними.</summary>
     [HttpPost("read-all")]
     public async Task<IActionResult> ReadAll()
     {
