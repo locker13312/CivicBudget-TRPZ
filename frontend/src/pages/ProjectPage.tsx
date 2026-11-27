@@ -16,6 +16,7 @@ import {
   Descriptions,
   Empty,
   Flex,
+  Grid,
   Image,
   List,
   Row,
@@ -43,6 +44,7 @@ import { useVotesChanged } from '../api/signalr'
 import type { MyBallot, ProjectDetails, StatusHistoryItem } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { ExportButton, LoadState, PageTitle, ProjectCover, StatusTag, useLoad } from '../components/common'
+import { CategoryTag } from '../components/category'
 import { SinglePointMap } from '../components/ProjectMap'
 
 export function ProjectPage() {
@@ -75,6 +77,7 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
   const { t } = useTranslation()
   const { user, hasRole } = useAuth()
   const { message, modal } = App.useApp()
+  const md = Grid.useBreakpoint().md
   const navigate = useNavigate()
   const [history, setHistory] = useState<StatusHistoryItem[]>([])
   const [subscribed, setSubscribed] = useState<boolean | null>(null)
@@ -140,6 +143,33 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
 
   const myVotes = ballot?.projects.find((x) => x.projectId === p.projectId)?.myVotes ?? 0
 
+  // карта й відомості: на широкому екрані — праворуч, на телефоні — після кошторису (вгорі лише вартість і голосування)
+  const sideInfo = (
+    <>
+      <Card title={t('Місце реалізації')} style={{ marginBottom: 24 }} styles={{ body: { padding: 12 } }}>
+        {p.latitude != null && p.longitude != null ? (
+          <SinglePointMap lat={p.latitude} lng={p.longitude} />
+        ) : (
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('Точку на карті не вказано')} />
+        )}
+        <Typography.Paragraph style={{ margin: '8px 4px 0' }}>{p.address ?? '—'}</Typography.Paragraph>
+      </Card>
+
+      <Card title={t('Відомості')}>
+        <Descriptions
+          column={1}
+          size="small"
+          items={[
+            { label: t('Автор'), children: p.authorName },
+            { label: t('Подано'), children: formatDate(p.submittedAt) },
+            { label: t('Опубліковано'), children: formatDate(p.publishedAt) },
+            ...(p.moderatorName ? [{ label: t('Модератор'), children: p.moderatorName }] : []),
+          ]}
+        />
+      </Card>
+    </>
+  )
+
   return (
     <>
       <PageTitle
@@ -148,7 +178,7 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
           <Space wrap size={6}>
             <StatusTag status={p.status} />
             <Tag>{p.regNumber ?? t('без номера')}</Tag>
-            <Tag color="blue">{t(p.categoryName)}</Tag>
+            <CategoryTag id={p.categoryId} name={p.categoryName} />
             <Tag>{t(p.districtName)}</Tag>
             <span>{p.campaignName}</span>
           </Space>
@@ -186,7 +216,7 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
       )}
 
       <Row gutter={[24, 24]}>
-        <Col xs={24} lg={16}>
+        <Col xs={{ span: 24, order: 2 }} lg={{ span: 16, order: 1 }}>
           <Card styles={{ body: { padding: 0 } }} style={{ overflow: 'hidden', marginBottom: 24 }}>
             {images.length > 0 ? (
               <Image.PreviewGroup>
@@ -248,15 +278,16 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
               rowKey="budgetItemId"
               pagination={false}
               dataSource={p.budgetItems}
-              scroll={{ x: 520 }}
+              scroll={md ? { x: 520 } : undefined}
               columns={[
                 { title: t('Позиція'), dataIndex: 'name' },
-                { title: t('Од.'), dataIndex: 'unit', width: 70 },
-                { title: t('К-сть'), dataIndex: 'quantity', align: 'right', width: 80 },
+                { title: t('Од.'), dataIndex: 'unit', width: 70, responsive: ['md'] },
+                { title: t('К-сть'), dataIndex: 'quantity', align: 'right', width: 80, responsive: ['md'] },
                 {
                   title: t('Ціна'),
                   dataIndex: 'unitPrice',
                   align: 'right',
+                  responsive: ['md'],
                   render: (v: number) => formatMoney(v),
                 },
                 {
@@ -268,7 +299,7 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
               ]}
               summary={() => (
                 <Table.Summary.Row>
-                  <Table.Summary.Cell index={0} colSpan={4}>
+                  <Table.Summary.Cell index={0} colSpan={md ? 4 : 1}>
                     <b>{t('Разом')}</b>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell index={1} align="right">
@@ -320,9 +351,10 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
               />
             </Card>
           )}
+          {!md && sideInfo}
         </Col>
 
-        <Col xs={24} lg={8}>
+        <Col xs={{ span: 24, order: 1 }} lg={{ span: 8, order: 2 }}>
           <Card style={{ marginBottom: 24 }}>
             <Statistic
               title={t('Орієнтовна вартість')}
@@ -385,27 +417,7 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
             )}
           </Card>
 
-          <Card title={t('Місце реалізації')} style={{ marginBottom: 24 }} styles={{ body: { padding: 12 } }}>
-            {p.latitude != null && p.longitude != null ? (
-              <SinglePointMap lat={p.latitude} lng={p.longitude} />
-            ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('Точку на карті не вказано')} />
-            )}
-            <Typography.Paragraph style={{ margin: '8px 4px 0' }}>{p.address ?? '—'}</Typography.Paragraph>
-          </Card>
-
-          <Card title={t('Відомості')}>
-            <Descriptions
-              column={1}
-              size="small"
-              items={[
-                { label: t('Автор'), children: p.authorName },
-                { label: t('Подано'), children: formatDate(p.submittedAt) },
-                { label: t('Опубліковано'), children: formatDate(p.publishedAt) },
-                ...(p.moderatorName ? [{ label: t('Модератор'), children: p.moderatorName }] : []),
-              ]}
-            />
-          </Card>
+          {md && sideInfo}
         </Col>
       </Row>
     </>

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { formatMoney } from '../api/labels'
 import type { ProjectListItem } from '../api/types'
+import { brand } from '../theme'
+import { CategoryTag } from './category'
 import { ProjectCover, StatusTag } from './common'
 
 /** Картка проєкту в каталозі: фото, статус, категорія, район, вартість, прогрес голосів. */
@@ -25,12 +27,13 @@ export function ProjectCard({ p, maxVotes }: { p: ProjectListItem; maxVotes: num
         }
       >
         <Flex justify="space-between" align="center" gap={8} style={{ marginBottom: 6 }}>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {p.regNumber} · {t(p.categoryName)}
-          </Typography.Text>
+          <CategoryTag id={p.categoryId} name={p.categoryName} />
           <StatusTag status={p.status} />
         </Flex>
-        <Typography.Title level={5} style={{ margin: '0 0 6px', minHeight: 44 }} ellipsis={{ rows: 2 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          {p.regNumber}
+        </Typography.Text>
+        <Typography.Title level={5} style={{ margin: '2px 0 6px', minHeight: 44 }} ellipsis={{ rows: 2 }}>
           {p.title}
         </Typography.Title>
         <Typography.Paragraph
@@ -47,10 +50,12 @@ export function ProjectCard({ p, maxVotes }: { p: ProjectListItem; maxVotes: num
           <b>{formatMoney(p.cost)}</b>
         </Flex>
         <Flex align="center" gap={8} style={{ marginTop: 8 }}>
-          <LikeOutlined style={{ color: '#1f5c99' }} />
+          <LikeOutlined style={{ color: brand.primary }} />
           <Progress
             percent={maxVotes ? Math.round((p.totalVotes / maxVotes) * 100) : 0}
             showInfo={false}
+            status="normal"
+            strokeColor={brand.primary}
             size="small"
             style={{ flex: 1, margin: 0 }}
           />

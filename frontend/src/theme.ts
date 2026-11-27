@@ -1,18 +1,35 @@
 import type { ThemeConfig } from 'antd'
 
-// Власна тема Ant Design: спокійний муніципальний стиль, основний колір — синій.
+/**
+ * Айдентика: стримана палітра з одним акцентом.
+ * primary — основний синій (кнопки, посилання, активні пункти), accent — бурштиновий,
+ * лише для знака логотипа й позначок переможців. Решта — нейтральні сірі.
+ */
+export const brand = {
+  primary: '#1f5c99',
+  primaryDark: '#174a7c',
+  accent: '#e3a21a',
+  ink: '#1d2733',
+  muted: '#6b7785',
+  line: '#e3e8ee',
+  bg: '#f5f7fa',
+}
+
 export const theme: ThemeConfig = {
   token: {
-    colorPrimary: '#1f5c99',
-    colorInfo: '#1f5c99',
+    colorPrimary: brand.primary,
+    colorInfo: brand.primary,
     colorSuccess: '#2e7d32',
-    colorWarning: '#d48806',
+    colorWarning: '#c77c02',
     colorError: '#c62828',
-    colorLink: '#1f5c99',
+    colorLink: brand.primary,
+    colorText: brand.ink,
+    colorTextSecondary: brand.muted,
+    colorBorderSecondary: brand.line,
     borderRadius: 8,
-    fontFamily: "'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
+    fontFamily: "'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
     fontSize: 14,
-    colorBgLayout: '#f3f6fa',
+    colorBgLayout: brand.bg,
     // світлі фони повідомлень і тегів (автоматично з темних основних кольорів виходять сіруваті)
     colorInfoBg: '#eaf2fb',
     colorInfoBorder: '#b6d0ee',
@@ -24,14 +41,16 @@ export const theme: ThemeConfig = {
     colorErrorBorder: '#f3b9b9',
   },
   components: {
-    Layout: { headerBg: '#ffffff', headerHeight: 64, headerPadding: '0 24px', footerBg: '#eef2f7' },
-    Menu: { itemBg: 'transparent', horizontalItemSelectedColor: '#1f5c99' },
+    Layout: { headerBg: '#ffffff', headerHeight: 64, headerPadding: '0 24px', footerBg: '#eef1f5' },
+    Menu: { itemBg: 'transparent', horizontalItemSelectedColor: brand.primary },
     Card: { headerFontSize: 16 },
-    Table: { headerBg: '#eef3f9' },
+    // робочі таблиці — щільні
+    Table: { headerBg: '#f0f3f7', cellPaddingBlockSM: 6, cellPaddingInlineSM: 8 },
+    Typography: { titleMarginBottom: '0.4em' },
   },
 }
 
-/** Кольори статусів — однакові бейджі по всьому застосунку. */
+/** Кольори статусів — однакові бейджі по всьому застосунку (проєкт, кампанія, реалізація, звіт). */
 export const statusColor: Record<string, string> = {
   draft: 'default',
   submitted: 'processing',
@@ -59,12 +78,17 @@ export const statusColor: Record<string, string> = {
   accepted: 'success',
 }
 
-/** Колір категорії — для обкладинок карток без фото і точок на карті. */
-export const categoryColor: Record<number, string> = {
-  1: '#5c6bc0',
-  2: '#43a047',
-  3: '#d81b60',
-  4: '#1e88e5',
-  5: '#ef6c00',
-  6: '#546e7a',
+/** Тон категорії: світлий фон і насичений колір — ті самі, що в демо-ілюстраціях. */
+export const categoryTone: Record<number, { bg: string; fg: string }> = {
+  1: { bg: '#e3e9f0', fg: '#4a6178' }, // Інфраструктура
+  2: { bg: '#e4eddf', fg: '#4f6b3a' }, // Озеленення
+  3: { bg: '#efe6ea', fg: '#7a4a5e' }, // Культура
+  4: { bg: '#e2e8f2', fg: '#3f5a85' }, // Освіта
+  5: { bg: '#f1e9df', fg: '#8a5a2b' }, // Спорт
+  6: { bg: '#e5e8ea', fg: '#50606b' }, // Безпека
 }
+
+/** Колір точки категорії на карті. */
+export const categoryColor: Record<number, string> = Object.fromEntries(
+  Object.entries(categoryTone).map(([k, v]) => [k, v.fg]),
+)

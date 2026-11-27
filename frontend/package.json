@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@ant-design/icons": "^5.5.2",
+        "@fontsource/inter": "^5.1.1",
         "@microsoft/signalr": "^11.0.0",
         "antd": "^5.22.7",
         "dayjs": "^1.11.13",

@@ -8,6 +8,7 @@ import { formatMoney } from '../api/labels'
 import { useVotesChanged } from '../api/signalr'
 import type { Campaign, RatingResponse, ResultRow, ResultsResponse } from '../api/types'
 import { RatingView } from '../components/RatingView'
+import { brand } from '../theme'
 import { CampaignTag, ExportButton, LoadState, PageTitle, StatusTag, useLoad } from '../components/common'
 
 const WINNERS = ['winner', 'implementing', 'completed']
@@ -111,7 +112,7 @@ export function ResultsPage() {
                               width: 48,
                               render: (_, r, i) =>
                                 WINNERS.includes(r.status) ? (
-                                  <TrophyFilled style={{ color: '#d4a017' }} />
+                                  <TrophyFilled style={{ color: brand.accent }} />
                                 ) : (
                                   i + 1
                                 ),

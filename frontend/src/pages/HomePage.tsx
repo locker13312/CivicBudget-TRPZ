@@ -1,5 +1,5 @@
 import { AppstoreOutlined, CheckSquareOutlined, FileAddOutlined, TrophyOutlined } from '@ant-design/icons'
-import { Button, Card, Col, Empty, Flex, Row, Space, Statistic, Steps, Table, Typography } from 'antd'
+import { Button, Card, Col, Empty, Grid, Row, Space, Steps, Table, Typography } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
@@ -7,6 +7,7 @@ import { campaignStatusOrder, formatDate, formatMoney } from '../api/labels'
 import type { Campaign, PagedResult, ProjectListItem } from '../api/types'
 import { CampaignTag, LoadState, NoCampaign, PageTitle, useLoad } from '../components/common'
 import { ProjectCard } from '../components/ProjectCard'
+import { brand } from '../theme'
 
 /** Етапи кампанії зі строками — для шкали на головній. */
 function stages(c: Campaign) {
@@ -63,45 +64,89 @@ function Home({ campaign: c, top }: { campaign: Campaign; top: PagedResult<Proje
     list.findIndex((s) => campaignStatusOrder.indexOf(s.key) >= idx),
   )
   const maxVotes = Math.max(1, ...top.items.map((p) => p.totalVotes))
+  const screensPad = Grid.useBreakpoint().md ? 32 : 20
+  // коли закінчується поточний етап — показуємо поруч зі статусом
+  const stageEnd =
+    { submission: c.submissionEnd, review: c.reviewEnd, voting: c.votingEnd, counting: c.resultsDate }[
+      c.status
+    ] ?? null
 
   return (
     <>
-      <Card
-        style={{
-          marginBottom: 24,
-          background: 'linear-gradient(120deg, #1f5c99 0%, #2f78c2 60%, #4a90d9 100%)',
-          border: 'none',
-        }}
-        styles={{ body: { padding: 28 } }}
-      >
-        <Flex justify="space-between" wrap gap={16} align="center">
-          <div style={{ color: '#fff', maxWidth: 680 }}>
-            <Space style={{ marginBottom: 8 }}>
+      <Card style={{ marginBottom: 24 }} styles={{ body: { padding: screensPad } }}>
+        <Row gutter={[32, 24]} align="middle">
+          <Col xs={24} lg={15}>
+            <Space style={{ marginBottom: 10 }} wrap>
               <CampaignTag status={c.status} />
+              {stageEnd && (
+                <Typography.Text type="secondary">
+                  {t('до')} {formatDate(stageEnd)}
+                </Typography.Text>
+              )}
             </Space>
-            <Typography.Title style={{ color: '#fff', margin: 0 }}>{c.name}</Typography.Title>
-            <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.9)', fontSize: 16, margin: '8px 0 0' }}>
+            <Typography.Title style={{ margin: 0, fontSize: 34, letterSpacing: -0.5 }}>
+              {c.name}
+            </Typography.Title>
+            <Typography.Paragraph
+              type="secondary"
+              style={{ fontSize: 16, margin: '10px 0 20px', maxWidth: 620 }}
+            >
               {t(
                 'Мешканці пропонують проєкти для свого міста й голосують за найкращі. Переможці реалізуються коштом міського бюджету.',
               )}
             </Typography.Paragraph>
-          </div>
-          <Space wrap>
-            {c.status === 'voting' && (
-              <Button size="large" icon={<CheckSquareOutlined />} onClick={() => navigate('/voting')}>
-                {t('Голосувати')}
+            <Space wrap>
+              {c.status === 'voting' && (
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<CheckSquareOutlined />}
+                  onClick={() => navigate('/voting')}
+                >
+                  {t('Голосувати')}
+                </Button>
+              )}
+              {c.status === 'submission' && (
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<FileAddOutlined />}
+                  onClick={() => navigate('/my/projects/new')}
+                >
+                  {t('Подати проєкт')}
+                </Button>
+              )}
+              <Button size="large" icon={<AppstoreOutlined />} onClick={() => navigate('/projects')}>
+                {t('Каталог проєктів')}
               </Button>
-            )}
-            {c.status === 'submission' && (
-              <Button size="large" icon={<FileAddOutlined />} onClick={() => navigate('/my/projects/new')}>
-                {t('Подати проєкт')}
-              </Button>
-            )}
-            <Button size="large" ghost icon={<AppstoreOutlined />} onClick={() => navigate('/projects')}>
-              {t('Каталог проєктів')}
-            </Button>
-          </Space>
-        </Flex>
+            </Space>
+          </Col>
+          <Col xs={24} lg={9}>
+            <Row gutter={[12, 12]}>
+              {[
+                [t('Бюджет кампанії'), formatMoney(c.totalBudget)],
+                [
+                  t('Вартість проєкту'),
+                  `${formatMoney(c.minProjectCost)} — ${formatMoney(c.maxProjectCost)}`,
+                ],
+                [
+                  t('Голосів у мешканця'),
+                  `${c.votesPerVoter}, ${t('до')} ${c.maxVotesPerProject} ${t('за проєкт')}`,
+                ],
+                [t('Голосувати можна з'), `${c.minVoterAge} ${t('років')}`],
+              ].map(([label, value]) => (
+                <Col span={12} key={label}>
+                  <div
+                    style={{ background: brand.bg, borderRadius: 8, padding: '12px 14px', height: '100%' }}
+                  >
+                    <div style={{ fontSize: 12, color: brand.muted }}>{label}</div>
+                    <div style={{ fontWeight: 600, fontSize: 15, marginTop: 2 }}>{value}</div>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </Col>
+        </Row>
       </Card>
 
       <PageTitle title={t('Етапи кампанії')} help="home" />
@@ -112,42 +157,6 @@ function Home({ campaign: c, top }: { campaign: Campaign; top: PagedResult<Proje
           items={list.map((s) => ({ title: t(s.title), description: s.period }))}
         />
       </Card>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={12} md={6}>
-          <Card>
-            <Statistic
-              title={t('Бюджет кампанії')}
-              value={c.totalBudget}
-              suffix={t('грн')}
-              groupSeparator=" "
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card>
-            <Statistic
-              title={t('Вартість проєкту')}
-              value={`${(c.minProjectCost / 1000).toFixed(0)}–${(c.maxProjectCost / 1000).toFixed(0)}`}
-              suffix={t('тис. грн')}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card>
-            <Statistic
-              title={t('Голосів у мешканця')}
-              value={c.votesPerVoter}
-              suffix={`/ ${t('до')} ${c.maxVotesPerProject} ${t('за проєкт')}`}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card>
-            <Statistic title={t('Голосувати можна з')} value={c.minVoterAge} suffix={t('років')} />
-          </Card>
-        </Col>
-      </Row>
 
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={9}>

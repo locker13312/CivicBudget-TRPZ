@@ -42,6 +42,8 @@ import { api } from '../api/client'
 import { roleNames } from '../api/labels'
 import { useAuth } from '../auth/AuthContext'
 import { setLanguage } from '../i18n'
+import { brand } from '../theme'
+import { Logo } from './Logo'
 
 type Item = Required<MenuProps>['items'][number]
 
@@ -193,7 +195,7 @@ export function AppLayout() {
           </Link>
           <Dropdown menu={userMenu} trigger={['click']} placement="bottomRight">
             <Button type="text" style={{ paddingInline: 6 }}>
-              <Avatar size="small" style={{ background: '#1f5c99' }} icon={<UserOutlined />} />
+              <Avatar size="small" style={{ background: brand.primary }} icon={<UserOutlined />} />
               {!mobile && (
                 <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {user.fullName}
@@ -232,13 +234,12 @@ export function AppLayout() {
             aria-label={t('Меню')}
           />
         )}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          <img src="/favicon.svg" alt="" width={30} height={30} />
-          {!(mobile && !screens.sm) && (
-            <span style={{ fontWeight: 700, fontSize: 17, color: '#1f5c99', whiteSpace: 'nowrap' }}>
-              {t('Громадський бюджет')}
-            </span>
-          )}
+        <Link
+          to="/"
+          style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+          aria-label={t('На головну')}
+        >
+          <Logo compact={mobile && !screens.sm} />
         </Link>
         {!mobile && (
           <Menu

@@ -1,6 +1,8 @@
 import { CheckCircleFilled, LikeFilled, PlusOutlined } from '@ant-design/icons'
 import {
   Alert,
+  Grid,
+  List,
   App,
   Button,
   Card,
@@ -27,6 +29,7 @@ import { useVotesChanged } from '../api/signalr'
 import type { BallotProject, MyBallot } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { LoadState, PageTitle, useLoad } from '../components/common'
+import { brand } from '../theme'
 
 /**
  * Онлайн-голосування: 5 голосів на виборця, до 2 за проєкт. Правила перевіряє тригер TR_Vote_CheckRules у БД —
@@ -41,6 +44,7 @@ export function VotingPage() {
   const [lastError, setLastError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<string | undefined>()
+  const narrow = !Grid.useBreakpoint().md
 
   useVotesChanged(() => void reload())
 
@@ -150,13 +154,13 @@ export function VotingPage() {
                     title={t('Лишилось голосів')}
                     value={data.remaining}
                     suffix={`/ ${data.votesPerVoter}`}
-                    valueStyle={{ color: data.remaining > 0 ? '#1f5c99' : '#8c8c8c', fontSize: 40 }}
+                    valueStyle={{ color: data.remaining > 0 ? brand.primary : brand.muted, fontSize: 40 }}
                   />
                   <Progress
                     percent={Math.round((data.used / data.votesPerVoter) * 100)}
                     steps={data.votesPerVoter}
                     showInfo={false}
-                    strokeColor="#1f5c99"
+                    strokeColor={brand.primary}
                     size={[40, 10]}
                     style={{ margin: '8px 0 16px' }}
                   />
@@ -206,78 +210,120 @@ export function VotingPage() {
                       style={{ minWidth: 180 }}
                     />
                   </Flex>
-                  <Table
-                    rowKey="projectId"
-                    dataSource={projects}
-                    pagination={false}
-                    scroll={{ x: 680 }}
-                    locale={{ emptyText: <Empty description={t('Проєктів для голосування немає')} /> }}
-                    columns={[
-                      {
-                        title: t('Проєкт'),
-                        render: (_, p) => (
-                          <>
-                            <Link to={`/projects/${p.projectId}`}>
-                              <b>{p.title}</b>
-                            </Link>
-                            <div style={{ color: '#8c8c8c', fontSize: 12 }}>
-                              {p.regNumber} · {t(p.categoryName)} · {t(p.districtName)}
-                            </div>
-                          </>
-                        ),
-                      },
-                      {
-                        title: t('Вартість'),
-                        dataIndex: 'cost',
-                        align: 'right',
-                        width: 120,
-                        render: (v: number) => formatMoney(v),
-                      },
-                      ...(data.votesHidden
-                        ? []
-                        : [
-                            {
-                              title: t('Голоси'),
-                              dataIndex: 'totalVotes',
-                              align: 'right' as const,
-                              width: 80,
-                            },
-                          ]),
-                      {
-                        title: t('Мої'),
-                        width: 90,
-                        render: (_, p) =>
-                          p.myVotes > 0 ? (
-                            <span style={{ color: '#2e7d32', fontWeight: 600 }}>
-                              <CheckCircleFilled /> {p.myVotes}
+                  {narrow ? (
+                    // на телефоні — картки: кнопка й вартість видно без горизонтальної прокрутки
+                    <List
+                      dataSource={projects}
+                      locale={{ emptyText: <Empty description={t('Проєктів для голосування немає')} /> }}
+                      renderItem={(p) => (
+                        <List.Item style={{ display: 'block', paddingInline: 0 }}>
+                          <Link to={`/projects/${p.projectId}`}>
+                            <b>{p.title}</b>
+                          </Link>
+                          <div style={{ color: brand.muted, fontSize: 12, margin: '2px 0 8px' }}>
+                            {p.regNumber} · {t(p.categoryName)} · {t(p.districtName)}
+                          </div>
+                          <Flex justify="space-between" align="center" gap={8}>
+                            <span>
+                              <b>{formatMoney(p.cost)}</b>
+                              {!data.votesHidden && (
+                                <span style={{ color: brand.muted }}> · {votesWord(p.totalVotes)}</span>
+                              )}
+                              {p.myVotes > 0 && (
+                                <span style={{ color: '#2e7d32', fontWeight: 600 }}>
+                                  {' '}
+                                  · <CheckCircleFilled /> {p.myVotes}
+                                </span>
+                              )}
                             </span>
-                          ) : (
-                            '—'
+                            {data.votingOpen && data.channel !== 'paper' && (
+                              <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                loading={busy === p.projectId}
+                                onClick={() => confirmVote(p)}
+                              >
+                                {t('Голос')}
+                              </Button>
+                            )}
+                          </Flex>
+                        </List.Item>
+                      )}
+                    />
+                  ) : (
+                    <Table
+                      rowKey="projectId"
+                      dataSource={projects}
+                      pagination={false}
+                      scroll={{ x: 680 }}
+                      locale={{ emptyText: <Empty description={t('Проєктів для голосування немає')} /> }}
+                      columns={[
+                        {
+                          title: t('Проєкт'),
+                          render: (_, p) => (
+                            <>
+                              <Link to={`/projects/${p.projectId}`}>
+                                <b>{p.title}</b>
+                              </Link>
+                              <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+                                {p.regNumber} · {t(p.categoryName)} · {t(p.districtName)}
+                              </div>
+                            </>
                           ),
-                      },
-                      // ліміти 5/2 перевіряє тригер БД, тому кнопка не блокується заздалегідь — повідомлення прийде з бази;
-                      // після закінчення етапу (або якщо вже голосував паперовим бюлетенем) кнопок немає взагалі
-                      ...(data.votingOpen && data.channel !== 'paper'
-                        ? [
-                            {
-                              title: '',
-                              width: 110,
-                              render: (_: unknown, p: BallotProject) => (
-                                <Button
-                                  type="primary"
-                                  size="small"
-                                  icon={<PlusOutlined />}
-                                  loading={busy === p.projectId}
-                                  onClick={() => confirmVote(p)}
-                                >
-                                  {t('Голос')}
-                                </Button>
-                              ),
-                            },
-                          ]
-                        : []),
-                    ]}
-                  />
+                        },
+                        {
+                          title: t('Вартість'),
+                          dataIndex: 'cost',
+                          align: 'right',
+                          width: 120,
+                          render: (v: number) => formatMoney(v),
+                        },
+                        ...(data.votesHidden
+                          ? []
+                          : [
+                              {
+                                title: t('Голоси'),
+                                dataIndex: 'totalVotes',
+                                align: 'right' as const,
+                                width: 80,
+                              },
+                            ]),
+                        {
+                          title: t('Мої'),
+                          width: 90,
+                          render: (_, p) =>
+                            p.myVotes > 0 ? (
+                              <span style={{ color: '#2e7d32', fontWeight: 600 }}>
+                                <CheckCircleFilled /> {p.myVotes}
+                              </span>
+                            ) : (
+                              '—'
+                            ),
+                        },
+                        // ліміти 5/2 перевіряє тригер БД, тому кнопка не блокується заздалегідь — повідомлення прийде з бази;
+                        // після закінчення етапу (або якщо вже голосував паперовим бюлетенем) кнопок немає взагалі
+                        ...(data.votingOpen && data.channel !== 'paper'
+                          ? [
+                              {
+                                title: '',
+                                width: 110,
+                                render: (_: unknown, p: BallotProject) => (
+                                  <Button
+                                    type="primary"
+                                    size="small"
+                                    icon={<PlusOutlined />}
+                                    loading={busy === p.projectId}
+                                    onClick={() => confirmVote(p)}
+                                  >
+                                    {t('Голос')}
+                                  </Button>
+                                ),
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
+                  )}
                 </Card>
               </Col>
             </Row>

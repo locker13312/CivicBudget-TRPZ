@@ -977,4 +977,5 @@ export const en: Record<string, string> = {
   'За однакової кількості голосів вище стоїть проєкт, за який проголосувало більше виборців; далі — раніше зареєстрований.':
     'With equal votes, the project with more voters ranks higher; then the one registered earlier.',
   'Ваш вибір': 'Your choice',
+  'КИЇВ · ПРОЄКТИ МЕШКАНЦІВ': 'KYIV · RESIDENTS’ PROJECTS',
 }

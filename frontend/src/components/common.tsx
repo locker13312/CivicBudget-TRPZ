@@ -11,7 +11,8 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ApiError, download } from '../api/client'
 import { campaignStatus, projectStatus } from '../api/labels'
-import { categoryColor, statusColor } from '../theme'
+import { categoryTone, statusColor } from '../theme'
+import { categoryIcon } from './category'
 import { useHelp } from './help'
 
 /** Заголовок форми: назва, підзаголовок, кнопка «?» (довідка саме до цієї форми), дії праворуч. */
@@ -194,7 +195,7 @@ export function NoCampaign() {
   )
 }
 
-/** Обкладинка проєкту: перше фото або кольорова плашка категорії. */
+/** Обкладинка проєкту: перше фото або рівна плашка в тоні категорії з її іконкою. */
 export function ProjectCover({
   photoId,
   categoryId,
@@ -206,7 +207,7 @@ export function ProjectCover({
   categoryName: string
   height?: number
 }) {
-  const color = categoryColor[categoryId] ?? '#1f5c99'
+  const tone = categoryTone[categoryId] ?? { bg: '#e3e9f0', fg: '#4a6178' }
   if (photoId)
     return (
       <img
@@ -220,15 +221,17 @@ export function ProjectCover({
     <div
       style={{
         height,
-        background: `linear-gradient(135deg, ${color}, ${color}99)`,
-        color: '#fff',
+        background: tone.bg,
+        color: tone.fg,
         display: 'flex',
-        alignItems: 'flex-end',
-        padding: 16,
-        fontWeight: 600,
-        fontSize: 16,
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        fontWeight: 500,
       }}
     >
+      <span style={{ fontSize: Math.round(height / 4) }}>{categoryIcon(categoryId)}</span>
       {categoryName}
     </div>
   )

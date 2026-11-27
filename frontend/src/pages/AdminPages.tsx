@@ -77,6 +77,7 @@ import type {
   UserRow,
 } from '../api/types'
 import { RatingView } from '../components/RatingView'
+import { brand } from '../theme'
 import { CampaignTag, ExportButton, LoadState, PageTitle, useLoad } from '../components/common'
 
 /** Вибір кампанії для адмін-сторінок (за замовчуванням — поточна). */
@@ -412,7 +413,7 @@ export function AdminCampaignPage() {
               <Card
                 title={
                   <Space>
-                    <TrophyFilled style={{ color: '#b8860b' }} />
+                    <TrophyFilled style={{ color: brand.accent }} />
                     {rating.final ? t('Рейтинг і переможці') : t('Попередній рейтинг')}
                   </Space>
                 }

@@ -319,15 +319,15 @@ INSERT INTO Report (StageId, AuthorId, Body, Status, SubmittedAt, ReviewedBy, Re
 -- фото до звітів (самі файли — у сховищі, тут лише метадані)
 INSERT INTO Attachment (ReportId, FileName, MimeType, StorageKey, SizeBytes, UploadedBy, UploadedAt) VALUES
 (1, N'проєктна-документація.pdf', 'application/pdf', 'reports/1/doc-1.pdf', 691, 5, DATEADD(day, -173, CAST(@Today AS datetime2(0)))),
-(2, N'опори-ділянка-1.jpg', 'image/jpeg', 'reports/2/photo-1.jpg', 32147, 5, DATEADD(day, -5, CAST(@Today AS datetime2(0)))),
-(2, N'світильники-вечір.jpg', 'image/jpeg', 'reports/2/photo-2.jpg', 33043, 5, DATEADD(day, -5, CAST(@Today AS datetime2(0)))),
-(3, N'сквер-готовий.jpg', 'image/jpeg', 'reports/3/photo-1.jpg', 28024, 5, DATEADD(day, -131, CAST(@Today AS datetime2(0))));
+(2, N'опори-ділянка-1.jpg', 'image/jpeg', 'reports/2/photo-1.jpg', 16739, 5, DATEADD(day, -5, CAST(@Today AS datetime2(0)))),
+(2, N'світильники-вечір.jpg', 'image/jpeg', 'reports/2/photo-2.jpg', 19536, 5, DATEADD(day, -5, CAST(@Today AS datetime2(0)))),
+(3, N'сквер-готовий.jpg', 'image/jpeg', 'reports/3/photo-1.jpg', 20247, 5, DATEADD(day, -131, CAST(@Today AS datetime2(0))));
 
 -- фото до проєктів (файли — у db/demo-files/, reset.ps1 копіює їх у папку uploads/ бекенду)
 INSERT INTO Attachment (ProjectId, FileName, MimeType, StorageKey, SizeBytes, UploadedBy, UploadedAt)
 SELECT p.ProjectId, N'фото-проєкту.jpg', 'image/jpeg', CONCAT('projects/', p.ProjectId, '/photo-1.jpg'), x.Size, p.AuthorId, p.CreatedAt
-FROM (VALUES (1, 37494), (2, 25241), (3, 29577), (4, 36850), (5, 32433), (6, 30298), (7, 37970), (8, 36477),
-             (9, 33620), (10, 30709), (11, 29421), (12, 29123), (16, 27023)) x (ProjectId, Size)
+FROM (VALUES (1, 21060), (2, 20814), (3, 20247), (4, 19052), (5, 24551), (6, 20042), (7, 19052), (8, 16271),
+             (9, 16719), (10, 27262), (11, 16384), (12, 18620), (16, 18946)) x (ProjectId, Size)
 JOIN Project p ON p.ProjectId = x.ProjectId;
 
 -- точки на карті (Project.Location, geography WGS 84: Point(широта, довгота, 4326)); статус не змінюється — тригер мовчить
