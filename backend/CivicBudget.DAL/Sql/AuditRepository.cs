@@ -119,4 +119,31 @@ VALUES (@UserId, @ActionCode, @EntityName, @EntityId, @Details, TRY_CAST(SESSION
         command.Parameters.Add("@Details", SqlDbType.NVarChar, 1000).Value = (object?)details ?? DBNull.Value;
         await command.ExecuteNonQueryAsync();
     }
+
+    /// <summary>
+    /// Історія статусів проєкту. Тригер пише Details як «було X, стало Y» — розбираємо цей текст.
+    /// </summary>
+    public async Task<List<StatusHistoryItem>> GetProjectStatusHistoryAsync(int projectId)
+    {
+        const string sql = @"
+SELECT a.CreatedAt, u.LastName + N' ' + u.FirstName AS UserName, a.Details
+FROM AuditLog a
+LEFT JOIN UserAccount u ON u.UserId = a.UserId
+WHERE a.ActionCode = 'project_status' AND a.EntityName = 'Project' AND a.EntityId = @ProjectId
+ORDER BY a.CreatedAt, a.AuditId;";
+
+        var result = new List<StatusHistoryItem>();
+        await using SqlConnection connection = await _factory.OpenAsync();
+        await using var command = new SqlCommand(sql, connection);
+        command.Parameters.Add("@ProjectId", SqlDbType.BigInt).Value = projectId;
+        await using SqlDataReader reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var details = reader.IsDBNull(2) ? "" : reader.GetString(2);
+            var parts = details.Replace("було ", "").Split(", стало ");
+            result.Add(new StatusHistoryItem(reader.GetDateTime(0), reader.IsDBNull(1) ? null : reader.GetString(1),
+                parts.Length == 2 ? parts[0].Trim() : null, parts[^1].Trim()));
+        }
+        return result;
+    }
 }

@@ -29,6 +29,8 @@ public record LoginResponse(bool RequiresTwoFactor, string? ChallengeId, string?
         new(false, null, null, a.AccessToken, a.RefreshToken, a.AccessExpiresAt, a.User);
 }
 
+public record TwoFactorResendRequest([Required] string ChallengeId);
+
 public record TwoFactorRequest([Required] string ChallengeId,
     [Required(ErrorMessage = "Введіть код із листа.")] string Code);
 
@@ -93,7 +95,8 @@ public record ProjectForEdit(ProjectDetails Project, bool CanEdit, string? Revis
 public record ModerationDecisionDto([Required] string Decision, string? Comment, int? DuplicateOfId = null);
 
 /// <summary>Призначення відповідального модератора.</summary>
-public record AssignModeratorDto([Range(1, int.MaxValue, ErrorMessage = "Оберіть модератора.")] int ModeratorId);
+/// <summary>Призначення модератора. ModeratorId = null — автоматично: модератор з найменшою кількістю проєктів у роботі.</summary>
+public record AssignModeratorDto(int? ModeratorId);
 
 public record ModerationQueue(IReadOnlyList<ProjectListItem> Queue, IReadOnlyList<ProjectListItem> ReadyToPublish,
     IReadOnlyList<LookupItem> Moderators);
@@ -107,8 +110,9 @@ public record ExpertConclusionDto([Required] string ReviewType, [Required] strin
 public record BallotProject(int ProjectId, string? RegNumber, string Title, string CategoryName, string DistrictName,
     decimal Cost, int TotalVotes, int MyVotes);
 
+/// <summary>Бюлетень мешканця. Remaining рахує функція БД dbo.fn_RemainingVotes; VotesHidden — проміжні результати приховано.</summary>
 public record MyBallot(CampaignModel? Campaign, bool VotingOpen, int VotesPerVoter, int MaxVotesPerProject,
-    int Used, int Remaining, string? Channel, IReadOnlyList<BallotProject> Projects);
+    int Used, int Remaining, string? Channel, IReadOnlyList<BallotProject> Projects, bool VotesHidden = false);
 
 public record PaperBallotItem(int ProjectId, [Range(1, 10)] byte Count);
 
@@ -144,8 +148,23 @@ public record CategoryLimitDto(byte CategoryId, [Range(1, 9999999999)] decimal B
 
 public record CampaignStatusDto([Required] string Status);
 
+/// <summary>
+/// Рядок рейтингу категорії. BalanceBefore — залишок ліміту на момент розгляду проєкту,
+/// Reason — чому проєкт пройшов чи не пройшов (немає голосів / не вміщується в залишок).
+/// </summary>
 public record WinnerRowDto(byte CategoryId, string CategoryName, decimal CategoryLimit, int Place, int ProjectId,
-    string? RegNumber, string Title, int Votes, decimal Cost, bool IsWinner);
+    string? RegNumber, string Title, int Votes, int VoterCount, decimal Cost, bool IsWinner, decimal BalanceBefore, string Reason);
+
+/// <summary>
+/// Рейтинг кампанії: Final = переможців уже визначено процедурою (інакше — попередній розрахунок за тими самими правилами).
+/// Balances — з табличної функції dbo.fn_CategoryBudgetBalance.
+/// </summary>
+public record RatingResponse(CampaignModel Campaign, bool Final, string TieRule,
+    IReadOnlyList<CategoryBalance> Balances, IReadOnlyList<WinnerRowDto> Rows);
+
+/// <summary>Перевірка перемикання етапу: чи дозволено, що станеться, про що варто знати.</summary>
+public record StageTransitionCheck(string From, string To, bool Allowed, string? Blocker,
+    IReadOnlyList<string> Consequences, IReadOnlyList<string> Warnings);
 
 public record UserRolesDto(List<string> Roles);
 

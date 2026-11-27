@@ -45,7 +45,9 @@ public class ProjectRepository : IProjectRepository
             x.P.DuplicateOfId,
             // перше фото проєкту — для обкладинки картки в каталозі
             x.P.Attachments.Where(a => a.MimeType.StartsWith("image/")).OrderBy(a => a.AttachmentId)
-                .Select(a => (int?)a.AttachmentId).FirstOrDefault()));
+                .Select(a => (int?)a.AttachmentId).FirstOrDefault(),
+            x.P.AuthorId,
+            x.P.SubmittedAt));
 
     /// <summary>
     /// Каталог: фільтри методами LINQ з лямбдами (Where, OrderBy, ThenBy),
@@ -144,6 +146,7 @@ public class ProjectRepository : IProjectRepository
             .Select(x => new
             {
                 x.P.ProjectId,
+                x.P.CampaignId,
                 x.P.RegNumber,
                 x.P.Title,
                 x.P.Status,
@@ -154,7 +157,7 @@ public class ProjectRepository : IProjectRepository
             })
             .ToListAsync();
         return rows.Select(r => new MapPoint(r.ProjectId, r.RegNumber, r.Title, r.Status, r.Category,
-            r.Location!.Coordinate.Y, r.Location.Coordinate.X, r.Cost, r.Votes)).ToList();
+            r.Location!.Coordinate.Y, r.Location.Coordinate.X, r.Cost, r.Votes, r.CampaignId)).ToList();
     }
 
     /// <summary>

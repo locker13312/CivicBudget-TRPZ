@@ -19,7 +19,10 @@ namespace CivicBudget.Api.Services;
 public class AuthService
 {
     public const int MaxFailedAttempts = 5;
-    private static readonly string[] TwoFactorRoles = { Roles.Moderator, Roles.Expert, Roles.Admin };
+    /// <summary>Повторно надіслати код можна не раніше ніж через стільки секунд.</summary>
+    public const int ResendSeconds = 30;
+    /// <summary>Ролі з обов'язковою двофакторною автентифікацією (ТЗ ч.2 п.3.3).</summary>
+    public static readonly string[] TwoFactorRoles = { Roles.Moderator, Roles.Expert, Roles.Admin };
 
     // Лічильник невдалих спроб — у пам'яті (окремої колонки в схемі немає).
     private static readonly ConcurrentDictionary<int, int> FailedAttempts = new();
@@ -69,17 +72,32 @@ public class AuthService
         }
         FailedAttempts.TryRemove(user.UserId, out _);
 
-        // двофакторна автентифікація: для працівників з увімкненою позначкою TwoFactorEnabled
-        if (user.TwoFactorEnabled && user.UserRoleUsers.Any(r => TwoFactorRoles.Contains(r.Role.Code)))
+        // двофакторна автентифікація: обов'язкова для модератора, експерта й адміністратора (ТЗ ч.2 п.3.3),
+        // для інших — якщо адміністратор увімкнув позначку TwoFactorEnabled
+        if (user.TwoFactorEnabled || user.UserRoleUsers.Any(r => TwoFactorRoles.Contains(r.Role.Code)))
             return await StartTwoFactorAsync(user);
 
         return LoginResponse.From(await IssueAsync(user, "login"));
     }
 
-    private async Task<LoginResponse> StartTwoFactorAsync(UserAccount user)
+    private Task<LoginResponse> StartTwoFactorAsync(UserAccount user) =>
+        SendCodeAsync(user, Guid.NewGuid().ToString("N"));
+
+    /// <summary>Новий код за тим самим запитом входу: попередній код перестає діяти.</summary>
+    public async Task<LoginResponse> ResendTwoFactorAsync(string challengeId)
+    {
+        if (!_cache.TryGetValue("2fa:" + challengeId, out TwoFactorChallenge? challenge) || challenge == null)
+            throw new BusinessRuleException("Час на введення коду минув. Увійдіть ще раз.");
+        var wait = ResendSeconds - (int)(DateTime.UtcNow - challenge.SentAt).TotalSeconds;
+        if (wait > 0)
+            throw new BusinessRuleException($"Новий код можна надіслати через {wait} с.");
+        var user = await _users.GetByIdAsync(challenge.UserId) ?? throw new UnauthorizedAccessException();
+        return await SendCodeAsync(user, challengeId);
+    }
+
+    private async Task<LoginResponse> SendCodeAsync(UserAccount user, string challengeId)
     {
         var code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
-        var challengeId = Guid.NewGuid().ToString("N");
         _cache.Set("2fa:" + challengeId, new TwoFactorChallenge(user.UserId, code), TimeSpan.FromMinutes(5));
 
         await _mail.SendAsync(user.Email, $"{user.LastName} {user.FirstName}", "Код підтвердження входу",
@@ -97,7 +115,7 @@ public class AuthService
     {
         var key = "2fa:" + request.ChallengeId;
         if (!_cache.TryGetValue(key, out TwoFactorChallenge? challenge) || challenge == null)
-            throw new BusinessRuleException("Код прострочено. Увійдіть ще раз.");
+            throw new BusinessRuleException("Час на введення коду минув. Увійдіть ще раз.");
 
         if (challenge.Code != request.Code.Trim())
         {
@@ -217,6 +235,7 @@ public class AuthService
         public TwoFactorChallenge(int userId, string code) { UserId = userId; Code = code; }
         public int UserId { get; }
         public string Code { get; }
+        public DateTime SentAt { get; } = DateTime.UtcNow;
         public int Attempts { get; set; }
     }
 }

@@ -160,4 +160,69 @@ public class DatabaseRulesTests
         Assert.Equal("not_selected", skate);
         Assert.Equal("winner", tennis);
     }
+
+    // ---------- подання (usp_SubmitProject) ----------
+
+    [Fact]
+    public async Task ResubmitRevision_KeepsNumberAndBecomesSubmitted()
+    {
+        // №16 «STEM-лабораторія» на доопрацюванні: повторне подання дозволене й після закриття прийому
+        string? status = null, number = null;
+        var (error, _) = await InTransaction(async (c, tx) =>
+        {
+            var cmd = new SqlCommand("usp_SubmitProject", c, tx) { CommandType = CommandType.StoredProcedure };
+            cmd.Parameters.Add("@ProjectId", SqlDbType.Int).Value = 16;
+            await using (var reader = await cmd.ExecuteReaderAsync())
+                while (await reader.ReadAsync()) number = reader.GetString(1);
+            status = (string?)await new SqlCommand("SELECT Status FROM Project WHERE ProjectId = 16;", c, tx).ExecuteScalarAsync();
+        });
+        Assert.Equal(0, error);
+        Assert.Equal("submitted", status);
+        Assert.EndsWith("-0009", number);
+    }
+
+    // ---------- функції v2 (CivicBudget_v2_extensions.sql) ----------
+
+    private static async Task<int> Remaining(SqlConnection c, SqlTransaction tx, int voter) =>
+        (int)(await new SqlCommand($"SELECT dbo.fn_RemainingVotes({voter}, 2);", c, tx).ExecuteScalarAsync())!;
+
+    [Fact]
+    public async Task RemainingVotes_DecreasesWithEachVote()
+    {
+        int before = 0, after = 0, paper = 0;
+        var (number, _) = await InTransaction(async (c, tx) =>
+        {
+            before = await Remaining(c, tx, Resident);
+            await Exec(c, tx, OnlineVote(Resident, Published, 2));
+            after = await Remaining(c, tx, Resident);
+            paper = await Remaining(c, tx, PaperVoter);   // паперові голоси теж рахуються
+        });
+        Assert.Equal(0, number);
+        Assert.Equal(5, before);
+        Assert.Equal(3, after);
+        Assert.Equal(3, paper);
+    }
+
+    [Fact]
+    public async Task CategoryBalance_AfterSelection_ShowsUsedAndBalance()
+    {
+        decimal limit = 0, used = 0, balance = 0;
+        var (number, _) = await InTransaction(async (c, tx) =>
+        {
+            await Exec(c, tx, "UPDATE Campaign SET Status = 'counting' WHERE CampaignId = 2;");
+            var cmd = new SqlCommand("usp_SelectWinners", c, tx) { CommandType = CommandType.StoredProcedure };
+            cmd.Parameters.Add("@CampaignId", SqlDbType.SmallInt).Value = 2;
+            await using (var reader = await cmd.ExecuteReaderAsync())
+                while (await reader.ReadAsync()) { }
+
+            var q = new SqlCommand("SELECT BudgetLimit, Used, Balance FROM dbo.fn_CategoryBudgetBalance(2) WHERE CategoryId = 5;", c, tx);
+            await using var r = await q.ExecuteReaderAsync();
+            await r.ReadAsync();
+            (limit, used, balance) = (r.GetDecimal(0), r.GetDecimal(1), r.GetDecimal(2));
+        });
+        Assert.Equal(0, number);
+        Assert.Equal(600000, limit);
+        Assert.Equal(470000, used);      // 350 000 + 120 000
+        Assert.Equal(130000, balance);
+    }
 }

@@ -27,7 +27,8 @@ public record ProjectListItem(
     string Status, byte CategoryId, string CategoryName, byte DistrictId, string DistrictName,
     decimal Cost, int TotalVotes, string AuthorName, DateTime UpdatedAt,
     string? LastDecision, string? LastComment,
-    int? ModeratorId = null, string? ModeratorName = null, int? DuplicateOfId = null, int? PhotoId = null);
+    int? ModeratorId = null, string? ModeratorName = null, int? DuplicateOfId = null, int? PhotoId = null,
+    int AuthorId = 0, DateTime? SubmittedAt = null);
 
 public record BudgetItemModel(int BudgetItemId, string Name, string Unit, decimal Quantity, decimal UnitPrice, decimal Amount);
 
@@ -50,7 +51,7 @@ public record AttachmentModel(int AttachmentId, string FileName, string MimeType
 
 /// <summary>Точка проєкту на карті (Project.Location, geography → широта/довгота).</summary>
 public record MapPoint(int ProjectId, string? RegNumber, string Title, string Status, string CategoryName,
-    double Latitude, double Longitude, decimal Cost, int TotalVotes);
+    double Latitude, double Longitude, decimal Cost, int TotalVotes, short CampaignId = 0);
 
 /// <summary>Схожий проєкт (кандидат у дублікати) і кількість спільних слів.</summary>
 public record SimilarProject(int ProjectId, string? RegNumber, string Title, string Status, int CommonWords);
@@ -137,3 +138,15 @@ public record OutgoingMail(long NotificationId, string? Email, string FullName, 
 
 /// <summary>Освоєння бюджету кампанії: план/факт за картками реалізації.</summary>
 public record BudgetUsageStat(int Implementations, int Completed, decimal PlannedBudget, decimal ActualCost, decimal WinnersCost);
+
+// ---------- функції v2 (db/CivicBudget_v2_extensions.sql) ----------
+
+/// <summary>Рядок dbo.fn_CategoryBudgetBalance: ліміт категорії, використано на переможців, залишок.</summary>
+public record CategoryBalance(byte CategoryId, string CategoryName, decimal BudgetLimit, decimal Used, decimal Balance, int Winners);
+
+/// <summary>Виборець для оператора: чи вже голосував (і як) та скільки голосів лишилось (fn_RemainingVotes).</summary>
+public record VoterStatus(int UserId, string FullName, DateOnly? BirthDate, string VerificationStatus, bool IsBlocked,
+    string? DistrictName, string? Channel, int Remaining);
+
+/// <summary>Зміна статусу проєкту з журналу аудиту (пише тригер TR_Project_StatusChange).</summary>
+public record StatusHistoryItem(DateTime CreatedAt, string? UserName, string? FromStatus, string ToStatus);

@@ -18,10 +18,12 @@ public class VotingService
     private readonly IProjectRepository _projects;
     private readonly IVoteRepository _votes;
     private readonly IHubContext<ResultsHub> _hub;
+    private readonly IFunctionRepository _functions;
 
     public VotingService(ICampaignRepository campaigns, IProjectRepository projects, IVoteRepository votes,
-        IHubContext<ResultsHub> hub)
+        IHubContext<ResultsHub> hub, IFunctionRepository functions)
     {
+        _functions = functions;
         _campaigns = campaigns;
         _projects = projects;
         _votes = votes;
@@ -41,13 +43,16 @@ public class VotingService
             ProjectService.PublicStatuses);
 
         int used = mine.Sum(v => v.VoteCount);
+        // залишок рахує функція БД — так само, як його перевіряє тригер TR_Vote_CheckRules
+        int remaining = await _functions.GetRemainingVotesAsync(voterId, campaign.CampaignId);
+        bool hidden = CampaignService.VotesHidden(campaign);
         var list = projects.Items.Select(p => new BallotProject(
-                p.ProjectId, p.RegNumber, p.Title, p.CategoryName, p.DistrictName, p.Cost, p.TotalVotes,
+                p.ProjectId, p.RegNumber, p.Title, p.CategoryName, p.DistrictName, p.Cost, hidden ? 0 : p.TotalVotes,
                 mine.Where(v => v.ProjectId == p.ProjectId).Sum(v => v.VoteCount)))
             .ToList();
 
         return new MyBallot(campaign, campaign.Status == "voting", campaign.VotesPerVoter, campaign.MaxVotesPerProject,
-            used, Math.Max(0, campaign.VotesPerVoter - used), mine.FirstOrDefault()?.Channel, list);
+            used, remaining, mine.FirstOrDefault()?.Channel, list, hidden);
     }
 
     /// <summary>Віддати ще один голос за проєкт: новий рядок Vote або VoteCount + 1.</summary>
@@ -97,6 +102,14 @@ public class VotingService
         await DbErrors.Run(_votes.SaveAsync);
         foreach (var i in items) await NotifyAsync(i.ProjectId);
         return items.Sum(i => i.Count);
+    }
+
+    /// <summary>Виборці для оператора з поточним станом голосування (fn_RemainingVotes).</summary>
+    public async Task<List<VoterStatus>> FindVotersAsync(string name, DateOnly? birthDate)
+    {
+        var campaign = await _campaigns.GetCurrentAsync()
+                       ?? throw new BusinessRuleException("Зараз немає оголошеної кампанії.");
+        return await _functions.FindVotersAsync(name, birthDate, campaign.CampaignId);
     }
 
     // SignalR: усі відкриті сторінки результатів і карток оновлюють лічильники.

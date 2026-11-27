@@ -27,10 +27,12 @@ public class ProjectService
     private readonly IAttachmentRepository _attachments;
     private readonly IUserRepository _users;
     private readonly FileStorage _files;
+    private readonly IAuditRepository _audit;
 
     public ProjectService(IProjectRepository projects, ICampaignRepository campaigns, IProcedureRepository procedures,
-        IAttachmentRepository attachments, IUserRepository users, FileStorage files)
+        IAttachmentRepository attachments, IUserRepository users, FileStorage files, IAuditRepository audit)
     {
+        _audit = audit;
         _projects = projects;
         _campaigns = campaigns;
         _procedures = procedures;
@@ -41,11 +43,28 @@ public class ProjectService
 
     // ---------- публічна частина ----------
 
-    public Task<PagedResult<ProjectListItem>> SearchAsync(ProjectFilter filter) =>
-        _projects.SearchAsync(filter, PublicStatuses);
+    // Кампанії, у яких зараз приховано проміжні результати (задача 16: «за рішенням адміністратора»).
+    private async Task<HashSet<short>> HiddenVoteCampaignsAsync() =>
+        (await _campaigns.GetAllAsync()).Where(CampaignService.VotesHidden).Select(c => c.CampaignId).ToHashSet();
 
-    public Task<List<MapPoint>> GetMapPointsAsync(ProjectFilter filter) =>
-        _projects.GetMapPointsAsync(filter, PublicStatuses);
+    public async Task<PagedResult<ProjectListItem>> SearchAsync(ProjectFilter filter)
+    {
+        var hidden = await HiddenVoteCampaignsAsync();
+        // поки результати приховано, сортування «за голосами» не повинно їх видавати
+        if (filter.CampaignId is short cid && hidden.Contains(cid) && (filter.Sort is null or "votes")) filter.Sort = "title";
+        var page = await _projects.SearchAsync(filter, PublicStatuses);
+        return hidden.Count == 0 ? page : page with
+        {
+            Items = page.Items.Select(p => hidden.Contains(p.CampaignId) ? p with { TotalVotes = 0 } : p).ToList()
+        };
+    }
+
+    public async Task<List<MapPoint>> GetMapPointsAsync(ProjectFilter filter)
+    {
+        var hidden = await HiddenVoteCampaignsAsync();
+        var points = await _projects.GetMapPointsAsync(filter, PublicStatuses);
+        return points.Select(p => hidden.Contains(p.CampaignId) ? p with { TotalVotes = 0 } : p).ToList();
+    }
 
     /// <summary>Картка проєкту. Непублічні проєкти бачать лише автор і працівники.</summary>
     public async Task<ProjectDetails> GetDetailsAsync(int projectId, int? userId, bool isStaff)
@@ -53,7 +72,24 @@ public class ProjectService
         var p = await _projects.GetDetailsAsync(projectId) ?? throw new KeyNotFoundException("Проєкт не знайдено.");
         if (!PublicStatuses.Contains(p.Status) && !isStaff && p.AuthorId != userId)
             throw new KeyNotFoundException("Проєкт не знайдено.");
+        if ((await HiddenVoteCampaignsAsync()).Contains(p.CampaignId))
+            p = p with { TotalVotes = 0, OnlineVotes = 0, PaperVotes = 0, VoterCount = 0 };
         return p;
+    }
+
+    /// <summary>Історія статусів (AuditLog, тригер TR_Project_StatusChange) — автору і працівникам.</summary>
+    public async Task<List<StatusHistoryItem>> GetStatusHistoryAsync(int projectId, int userId, bool isStaff)
+    {
+        var p = await _projects.GetEntityAsync(projectId) ?? throw new KeyNotFoundException("Проєкт не знайдено.");
+        if (!isStaff && p.AuthorId != userId) throw new UnauthorizedAccessException("Історію бачать лише автор і працівники.");
+        return await _audit.GetProjectStatusHistoryAsync(projectId);
+    }
+
+    // Модератор чи експерт не розглядає власний проєкт (конфлікт інтересів).
+    private static void NotOwn(Project project, int reviewerId)
+    {
+        if (project.AuthorId == reviewerId)
+            throw new BusinessRuleException("Ви автор цього проєкту, тому розглядати його має інший працівник.");
     }
 
     // ---------- автор ----------
@@ -248,18 +284,34 @@ public class ProjectService
     /// Призначення відповідального модератора (Project.ModeratorId). Поданий проєкт
     /// при цьому переходить у статус «на модерації» — тригер повідомить автора.
     /// </summary>
-    public async Task AssignModeratorAsync(int projectId, int moderatorId)
+    public async Task<string> AssignModeratorAsync(int projectId, int? moderatorId)
     {
         var project = await _projects.GetEntityAsync(projectId) ?? throw new KeyNotFoundException("Проєкт не знайдено.");
         if (project.Status is not ("submitted" or "moderation"))
             throw new BusinessRuleException("Призначити модератора можна лише проєкту в черзі модерації.");
-        if ((await _users.GetByRoleAsync("moderator")).All(m => m.Id != moderatorId))
-            throw new BusinessRuleException("Обраний користувач не є модератором.");
+        var moderators = (await _users.GetByRoleAsync("moderator")).Where(m => m.Id != project.AuthorId).ToList();
+        if (moderators.Count == 0) throw new BusinessRuleException("Немає модератора, який міг би розглянути цей проєкт.");
 
-        project.ModeratorId = moderatorId;
+        LookupItem chosen;
+        if (moderatorId is int id)
+        {
+            if (id == project.AuthorId)
+                throw new BusinessRuleException("Автор проєкту не може бути його модератором.");
+            chosen = moderators.FirstOrDefault(m => m.Id == id)
+                     ?? throw new BusinessRuleException("Обраний користувач не є модератором.");
+        }
+        else
+        {
+            // задача 9: маршрутизація з урахуванням завантаженості — найменше проєктів у роботі
+            var inWork = await _projects.GetByStatusesAsync(new[] { "submitted", "moderation", "expertise" });
+            chosen = moderators.OrderBy(m => inWork.Count(p => p.ModeratorId == m.Id)).ThenBy(m => m.Name).First();
+        }
+
+        project.ModeratorId = chosen.Id;
         if (project.Status == "submitted") project.Status = "moderation";
         project.UpdatedAt = DateTime.Now;
         await DbErrors.Run(_projects.SaveAsync);
+        return chosen.Name;
     }
 
     public async Task ModerateAsync(int projectId, int moderatorId, ModerationDecisionDto dto)
@@ -267,6 +319,7 @@ public class ProjectService
         var project = await _projects.GetEntityAsync(projectId) ?? throw new KeyNotFoundException("Проєкт не знайдено.");
         if (project.Status is not ("submitted" or "moderation"))
             throw new BusinessRuleException("Проєкт не перебуває на модерації.");
+        NotOwn(project, moderatorId);
 
         var comment = Clean(dto.Comment);
         (string decision, string newStatus) = dto.Decision switch
@@ -317,6 +370,7 @@ public class ProjectService
             throw new BusinessRuleException("Опублікувати можна лише допущений проєкт.");
 
         var project = (await _projects.GetEntityAsync(projectId))!;
+        NotOwn(project, moderatorId);
         project.Status = "published";
         project.PublishedAt = DateTime.Now;
         project.UpdatedAt = DateTime.Now;
@@ -334,6 +388,7 @@ public class ProjectService
         var project = await _projects.GetEntityAsync(projectId) ?? throw new KeyNotFoundException("Проєкт не знайдено.");
         if (project.Status != "expertise")
             throw new BusinessRuleException("Проєкт не перебуває на експертизі.");
+        NotOwn(project, expertId);
         if (dto.ReviewType is not ("technical" or "legal" or "financial"))
             throw new BusinessRuleException("Оберіть вид експертизи.");
 

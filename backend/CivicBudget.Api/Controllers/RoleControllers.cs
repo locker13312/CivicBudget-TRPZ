@@ -1,6 +1,7 @@
 using CivicBudget.Api.Auth;
 using CivicBudget.Api.Dto;
 using CivicBudget.Api.Services;
+using CivicBudget.Api.Infrastructure;
 using CivicBudget.DAL.Models;
 using CivicBudget.DAL.Repositories;
 using Microsoft.AspNetCore.Authorization;
@@ -95,8 +96,8 @@ public class ModerationController : ControllerBase
     [HttpPost("{id:int}/assign")]
     public async Task<MessageResponse> Assign(int id, AssignModeratorDto dto)
     {
-        await _projects.AssignModeratorAsync(id, dto.ModeratorId);
-        return new MessageResponse("Модератора призначено.");
+        var name = await _projects.AssignModeratorAsync(id, dto.ModeratorId);
+        return new MessageResponse($"Призначено модератора: {name}.");
     }
 
     /// <summary>Схожі проєкти — кандидати в дублікати.</summary>
@@ -167,35 +168,36 @@ public class VotingController : ControllerBase
 [Route("api/operator")]
 public class OperatorController : ControllerBase
 {
-    private readonly IUserRepository _users;
     private readonly VotingService _voting;
     private readonly HttpCurrentUser _user;
-
     private readonly IAuditRepository _audit;
 
-    public OperatorController(IUserRepository users, VotingService voting, HttpCurrentUser user, IAuditRepository audit)
+    public OperatorController(VotingService voting, HttpCurrentUser user, IAuditRepository audit)
     {
         _audit = audit;
-        _users = users;
         _voting = voting;
         _user = user;
     }
 
-    /// <summary>Пошук виборця за прізвищем, ім'ям, e-mail або номером.</summary>
+    /// <summary>
+    /// Пошук виборця за ПІБ і датою народження (ПЦ-14, ДП-08). Разом із даними особи повертається,
+    /// чи голосував він уже в поточній кампанії і скільки голосів лишилось (fn_RemainingVotes).
+    /// </summary>
     [HttpGet("voters")]
-    public async Task<List<UserRow>> Voters([FromQuery] string q)
+    public async Task<List<VoterStatus>> Voters([FromQuery] string name, [FromQuery] DateOnly? birthDate)
     {
-        if (string.IsNullOrWhiteSpace(q)) return new();
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 2) return new();
         // доступ до персональних даних фіксується в журналі аудиту (ТЗ ч.1 п.4.6)
-        await _audit.WriteAsync(_user.RequireUserId(), "pd_view", "UserAccount", null, $"пошук виборця: {q.Trim()}");
-        return await _users.SearchVotersAsync(q);
+        await _audit.WriteAsync(_user.RequireUserId(), "pd_view", "UserAccount", null,
+            $"пошук виборця: {name.Trim()}{(birthDate.HasValue ? ", " + birthDate.Value.ToString("dd.MM.yyyy") : "")}");
+        return await _voting.FindVotersAsync(name, birthDate);
     }
 
     [HttpPost("ballots")]
     public async Task<MessageResponse> Ballot(PaperBallotDto dto)
     {
         var count = await _voting.AddPaperBallotAsync(_user.RequireUserId(), dto);
-        return new MessageResponse($"Бюлетень внесено: {count} голос(ів).");
+        return new MessageResponse($"Бюлетень внесено: {Words.Votes(count)}.");
     }
 }
 
@@ -237,9 +239,17 @@ public class AdminController : ControllerBase
         return new MessageResponse("Етап кампанії змінено.");
     }
 
+    /// <summary>Що станеться при перемиканні етапу: дозволено чи ні, наслідки, попередження.</summary>
+    [HttpGet("campaigns/{id}/status-check")]
+    public Task<StageTransitionCheck> StatusCheck(short id, [FromQuery] string to) => _campaigns.CheckTransitionAsync(id, to);
+
     /// <summary>Визначити переможців — usp_SelectWinners (ADO.NET, SqlDataReader).</summary>
     [HttpPost("campaigns/{id}/select-winners")]
-    public Task<List<WinnerRowDto>> SelectWinners(short id) => _campaigns.SelectWinnersAsync(id);
+    public Task<RatingResponse> SelectWinners(short id) => _campaigns.SelectWinnersAsync(id);
+
+    /// <summary>Рейтинг кампанії з причинами відбору і залишком категорій (fn_CategoryBudgetBalance).</summary>
+    [HttpGet("campaigns/{id}/rating")]
+    public Task<RatingResponse> Rating(short id) => _campaigns.GetRatingAsync(id);
 
     [HttpGet("users")]
     public async Task<PagedResult<UserRow>> Users([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 15)
@@ -253,6 +263,10 @@ public class AdminController : ControllerBase
     [HttpPut("users/{id:int}/two-factor")]
     public async Task<MessageResponse> TwoFactor(int id, UserTwoFactorDto dto)
     {
+        var target = await _users.GetByIdAsync(id) ?? throw new KeyNotFoundException("Користувача не знайдено.");
+        if (!dto.Enabled && target.UserRoleUsers.Any(r => AuthService.TwoFactorRoles.Contains(r.Role.Code)))
+            throw new CivicBudget.DAL.Infrastructure.BusinessRuleException(
+                "Для модератора, експерта й адміністратора двофакторна автентифікація обов'язкова.");
         await _users.SetTwoFactorAsync(id, dto.Enabled, _user.RequireUserId());
         return new MessageResponse(dto.Enabled ? "Двофакторну автентифікацію увімкнено." : "Двофакторну автентифікацію вимкнено.");
     }

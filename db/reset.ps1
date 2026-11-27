@@ -9,6 +9,11 @@ sqlcmd -S $server -E -C -b -i (Join-Path $dir 'CivicBudget_create.sql') | Out-Nu
 if ($LASTEXITCODE -ne 0) { throw 'Помилка в CivicBudget_create.sql' }
 Write-Host 'CivicBudget_create.sql — OK'
 
+# нові об'єкти (функції) — окремим скриптом, схема зі зданого документа не змінюється
+sqlcmd -S $server -E -C -b -i (Join-Path $dir 'CivicBudget_v2_extensions.sql') | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'Помилка в CivicBudget_v2_extensions.sql' }
+Write-Host 'CivicBudget_v2_extensions.sql — OK'
+
 sqlcmd -S $server -E -C -b -W -s '|' -i (Join-Path $dir 'CivicBudget_demo.sql')
 if ($LASTEXITCODE -ne 0) { throw 'Помилка в CivicBudget_demo.sql' }
 Write-Host 'CivicBudget_demo.sql — OK'

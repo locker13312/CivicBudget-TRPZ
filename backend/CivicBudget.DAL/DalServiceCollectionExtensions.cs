@@ -31,6 +31,7 @@ public static class DalServiceCollectionExtensions
 
         // ADO.NET-репозиторії
         services.AddScoped<IProcedureRepository, ProcedureRepository>();
+        services.AddScoped<IFunctionRepository, FunctionRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();
         return services;
     }

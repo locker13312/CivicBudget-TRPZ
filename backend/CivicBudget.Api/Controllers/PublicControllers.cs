@@ -81,6 +81,15 @@ public class ProjectsController : ControllerBase
         return _projects.GetDetailsAsync(id, _user.UserId, staff);
     }
 
+    /// <summary>Історія статусів проєкту з журналу аудиту — для автора і працівників.</summary>
+    [Authorize]
+    [HttpGet("{id:int}/history")]
+    public Task<List<StatusHistoryItem>> History(int id)
+    {
+        bool staff = User.IsInRole(Roles.Moderator) || User.IsInRole(Roles.Expert) || User.IsInRole(Roles.Admin);
+        return _projects.GetStatusHistoryAsync(id, _user.RequireUserId(), staff);
+    }
+
     [Authorize]
     [HttpGet("{id:int}/subscription")]
     public async Task<object> IsSubscribed(int id) =>

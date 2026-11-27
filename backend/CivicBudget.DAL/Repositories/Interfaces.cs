@@ -99,6 +99,8 @@ public interface IAuditRepository
     /// <summary>Довідник для фільтрів: наявні коди дій і назви об'єктів.</summary>
     Task<(List<string> Actions, List<string> Entities)> GetFilterValuesAsync();
     Task WriteAsync(int? userId, string actionCode, string entityName, long? entityId, string? details);
+    /// <summary>Історія статусів проєкту: записи project_status, які створює тригер TR_Project_StatusChange.</summary>
+    Task<List<StatusHistoryItem>> GetProjectStatusHistoryAsync(int projectId);
 }
 
 /// <summary>Збережені процедури — з'єднаний сценарій ADO.NET (SqlConnection + SqlCommand + SqlDataReader).</summary>
@@ -106,6 +108,14 @@ public interface IProcedureRepository
 {
     Task<SubmitResult> SubmitProjectAsync(int projectId);
     Task<List<WinnerRow>> SelectWinnersAsync(short campaignId);
+}
+
+/// <summary>Функції користувача fn_RemainingVotes і fn_CategoryBudgetBalance — ADO.NET.</summary>
+public interface IFunctionRepository
+{
+    Task<int> GetRemainingVotesAsync(int voterId, short campaignId);
+    Task<List<CategoryBalance>> GetCategoryBalanceAsync(short campaignId);
+    Task<List<VoterStatus>> FindVotersAsync(string name, DateOnly? birthDate, short campaignId);
 }
 
 /// <summary>Вкладення (таблиця Attachment): метадані в БД, самі файли — у локальній папці сервера.</summary>

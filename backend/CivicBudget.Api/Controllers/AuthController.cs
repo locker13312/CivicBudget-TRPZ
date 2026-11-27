@@ -35,6 +35,11 @@ public class AuthController : ControllerBase
     [EnableRateLimiting("auth")]
     public Task<AuthResponse> TwoFactor(TwoFactorRequest request) => _auth.VerifyTwoFactorAsync(request);
 
+    /// <summary>Надіслати код 2FA ще раз (не частіше, ніж раз на 30 секунд).</summary>
+    [HttpPost("2fa/resend")]
+    [EnableRateLimiting("auth")]
+    public Task<LoginResponse> ResendTwoFactor(TwoFactorResendRequest request) => _auth.ResendTwoFactorAsync(request.ChallengeId);
+
     /// <summary>Імітація BankID / Дія.Підпис для реєстрації: тестові дані осіб, які «повертає банк».</summary>
     [HttpGet("identity-demo/persons")]
     public IReadOnlyList<DemoIdentityProvider.Person> Persons() => DemoIdentityProvider.Persons;
