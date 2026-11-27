@@ -56,7 +56,7 @@ export function RegisterPage() {
     setError(null)
     try {
       await register(person.personId, method, v.email, v.password)
-      message.success(t('Реєстрацію завершено. Ласкаво просимо!'))
+      message.success(t('Реєстрацію завершено. Ви увійшли в систему.'))
       navigate('/voting')
     } catch (e) {
       setError((e as Error).message)

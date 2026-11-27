@@ -337,7 +337,6 @@ export const en: Record<string, string> = {
   Номер: 'Number',
   'Попередні рішення': 'Previous decisions',
   'Рішення модератора': 'Moderator decision',
-  '✓ Допустити (далі — публікація)': '✓ Approve (then publish)',
   'На експертизу': 'Send to expert review',
   'Повернути на доопрацювання (з коментарем)': 'Return for revision (with a comment)',
   'Відхилити (з обґрунтуванням)': 'Reject (with a reason)',
@@ -804,4 +803,178 @@ export const en: Record<string, string> = {
     'Minimum cost ≤ maximum cost ≤ total budget.',
   'Позначте хоча б один проєкт.': 'Mark at least one project.',
   'Не можна заблокувати самого себе.': 'You cannot block yourself.',
+  // етап 3: виправлення за аудитом
+  'Немає зв’язку із сервером. Перевірте інтернет і спробуйте ще раз.':
+    'No connection to the server. Check your internet connection and try again.',
+  'Як відбираються переможці': 'How winners are selected',
+  'У кожній категорії проєкти впорядковано за кількістю голосів. Проєкт проходить, якщо має хоча б один голос і його вартість вміщується в залишок ліміту категорії; інакше черга переходить до наступного.':
+    'In each category, projects are ranked by votes. A project is selected if it has at least one vote and its cost fits into the remaining category limit; otherwise the next project is considered.',
+  'Це попередній розрахунок: остаточно переможців визначить кнопка «Визначити переможців».':
+    'This is a preliminary calculation: the winners are finalised with the “Select winners” button.',
+  'Бюджет категорій': 'Category budgets',
+  Переможців: 'Winners',
+  Використано: 'Used',
+  Залишок: 'Balance',
+  Зрозуміло: 'OK',
+  'Перемкнути етап?': 'Switch stage?',
+  'Зверніть увагу': 'Please note',
+  'Визначити переможців?': 'Select winners?',
+  'Голоси буде підраховано, проєкти в кожній категорії відібрано за рейтингом у межах ліміту. Переможці й автори отримають сповіщення, кампанія перейде на етап «Реалізація». Скасувати це не можна.':
+    'Votes will be counted and projects in each category selected by ranking within the limit. Authors will be notified and the campaign will move to “Implementation”. This cannot be undone.',
+  'Етапи перемикаються по черзі. До підрахунку голосів можна повернутися на крок назад, після — ні.':
+    'Stages switch one at a time. Before vote counting you can go one step back, after that you cannot.',
+  'Проєкти буде відібрано за кількістю голосів у межах ліміту кожної категорії.':
+    'Projects will be selected by votes within each category limit.',
+  'Попередній рейтинг': 'Preliminary ranking',
+  'Користувач не зможе увійти в систему. Уже віддані голоси й подані проєкти лишаються.':
+    'The user will not be able to sign in. Votes already cast and projects submitted remain.',
+  'Користувач знову зможе входити в систему.': 'The user will be able to sign in again.',
+  Прострочено: 'Overdue',
+  'Новий код надіслано. Попередній більше не діє.':
+    'A new code has been sent. The previous one no longer works.',
+  'Ви увійшли як {{name}}': 'Signed in as {{name}}',
+  'Надіслати код ще раз ({{n}} с)': 'Send the code again ({{n}} s)',
+  'Надіслати код ще раз': 'Send the code again',
+  'Що можна змінювати': 'What you can edit',
+  'Чернетка — усе: опис, кошторис, місце, файли. Видно лише вам.':
+    'Draft: everything — description, budget, location, files. Only you can see it.',
+  'Подано, на модерації, на експертизі — нічого, проєкт чекає рішення.':
+    'Submitted, in moderation, in expert review: nothing, the project awaits a decision.',
+  'На доопрацюванні — усе, потім «Подати повторно». Номер проєкту зберігається.':
+    'Returned for revision: everything, then “Resubmit”. The project number is kept.',
+  'Опубліковано і далі — нічого, проєкт бере участь у голосуванні або реалізується.':
+    'Published and later: nothing, the project is in voting or being implemented.',
+  'Виборець уже голосував онлайн у цій кампанії. Паперовий бюлетень не приймається.':
+    'The voter has already voted online in this campaign. A paper ballot cannot be accepted.',
+  'Виборець уже подав паперовий бюлетень і використав усі голоси.':
+    'The voter has already cast a paper ballot and used all votes.',
+  'Обліковий запис виборця заблоковано.': "The voter's account is blocked.",
+  'Особу виборця не верифіковано.': "The voter's identity is not verified.",
+  'Виборцю ще немає {{n}} років.': 'The voter is under {{n}}.',
+  'Прізвище та ім’я': 'Last and first name',
+  Знайти: 'Search',
+  'Виборця не знайдено. Перевірте ПІБ і дату народження.':
+    'No voter found. Check the name and date of birth.',
+  'голосував онлайн': 'voted online',
+  'паперовий бюлетень': 'paper ballot',
+  'не голосував': 'has not voted',
+  'ще не голосував': 'has not voted yet',
+  'Виборець може проголосувати: {{n}}.': 'The voter can cast: {{n}}.',
+  'Обрати іншого виборця': 'Choose another voter',
+  'Вік, верифікацію, ліміти голосів і те, що виборець не голосував онлайн, система перевіряє під час внесення.':
+    'Age, verification, vote limits and that the voter has not voted online are checked when the ballot is entered.',
+  'Віддати голос за «{{title}}»?': 'Vote for “{{title}}”?',
+  'Голос остаточний: відкликати його чи перенести на інший проєкт не можна.':
+    'Your vote is final: it cannot be withdrawn or moved to another project.',
+  'Віддати голос': 'Cast vote',
+  'Голос враховано. Лишилось: {{n}}': 'Vote counted. Left: {{n}}',
+  'Історія статусів': 'Status history',
+  було: 'was',
+  'Завантаження залишку голосів…': 'Loading your remaining votes…',
+  'Реєстрацію завершено. Ви увійшли в систему.': 'Registration complete. You are signed in.',
+  'Голоси за категоріями': 'Votes by category',
+  'Відбір переможців': 'Winner selection',
+  строк: 'due',
+  'прострочено на': 'overdue by',
+  'строк сьогодні': 'due today',
+  'Ви автор цього проєкту, тому розглядати його має інший працівник.':
+    'You are the author of this project, so another staff member must review it.',
+  'Ваш проєкт': 'Your project',
+  'Опублікувати «{{title}}»?': 'Publish “{{title}}”?',
+  'Проєкт з’явиться в каталозі й братиме участь у голосуванні. Автор отримає сповіщення.':
+    'The project will appear in the catalogue and take part in voting. The author will be notified.',
+  'Проєкт опубліковано, він з’явився в каталозі': 'The project is published and now in the catalogue',
+  'у автора': 'with the author',
+  'Автоматично — найменше завантажений модератор': 'Automatically — the least loaded moderator',
+  'Підтвердити рішення?': 'Confirm the decision?',
+  'Допустити (далі — публікація)': 'Approve (then publish)',
+  'До проєкту': 'Open project',
+  'Позначити прочитаним': 'Mark as read',
+  Лишилось: 'Left',
+  'Віддати голос можна лише на етапі «Голосування». Результати — на сторінці «Результати».':
+    'Votes can be cast only during the “Voting” stage. See the “Results” page for results.',
+  'Призначення модератора': 'Moderator assignment',
+  'Етап оновлено.': 'Stage updated.',
+  'Статус реалізації змінено.': 'Implementation status changed.',
+  'Активної кампанії немає.': 'There is no active campaign.',
+  'Переможців ще не визначено.': 'Winners have not been selected yet.',
+  'Чернетку збережено.': 'Draft saved.',
+  'Рішення збережено.': 'Decision saved.',
+  'Проєкт опубліковано.': 'Project published.',
+  'Висновок збережено.': 'Conclusion saved.',
+  'Параметри кампанії збережено.': 'Campaign settings saved.',
+  'Етап кампанії змінено.': 'Campaign stage changed.',
+  "Для модератора, експерта й адміністратора двофакторна автентифікація обов'язкова.":
+    'Two-factor authentication is mandatory for moderators, experts and administrators.',
+  'Ролі оновлено.': 'Roles updated.',
+  'Файл порожній.': 'The file is empty.',
+  'Формат: pdf, xlsx або csv.': 'Format: pdf, xlsx or csv.',
+  'Час на введення коду минув. Увійдіть ще раз.': 'The code has expired. Please sign in again.',
+  'Особу не знайдено.': 'Person not found.',
+  'Оберіть спосіб підтвердження: BankID або Дія.Підпис.':
+    'Choose a verification method: BankID or Diia.Pidpys.',
+  'Банк не повернув даних особи.': 'The bank returned no personal data.',
+  'Голосів за один проєкт не може бути більше, ніж голосів у виборця.':
+    'Votes per project cannot exceed votes per voter.',
+  'Невідомий етап кампанії.': 'Unknown campaign stage.',
+  'Кампанія вже на цьому етапі.': 'The campaign is already at this stage.',
+  'Після початку підрахунку голосів повернутися на попередній етап не можна.':
+    'Once vote counting has started, you cannot go back to a previous stage.',
+  'Повернутися можна лише на один етап назад.': 'You can go back only one stage.',
+  'Кампанія повернеться на попередній етап; ухвалені рішення щодо проєктів не зміняться.':
+    'The campaign returns to the previous stage; decisions on projects stay as they are.',
+  'Етапи перемикаються лише по черзі, без пропусків.': 'Stages switch one at a time, without skipping.',
+  'Не задано жодного ліміту категорій — подати проєкт буде нікуди.':
+    'No category limits are set — projects cannot be submitted anywhere.',
+  'Прийом нових проєктів закриється, модератори й експерти розглядають подані.':
+    'Submission closes; moderators and experts review submitted projects.',
+  'Онлайн-голосування закриється. Оператори ще можуть вносити паперові бюлетені.':
+    'Online voting closes. Operators can still enter paper ballots.',
+  'Повернутися до голосування після цього не можна.': 'You cannot return to voting after this.',
+  'Етап «Реалізація» настає після кнопки «Визначити переможців»: вона підраховує голоси й відбирає проєкти.':
+    'The “Implementation” stage starts with the “Select winners” button: it counts votes and selects projects.',
+  'Кампанія потрапить в архів; результати й хід реалізації лишаться доступними.':
+    'The campaign goes to the archive; results and implementation progress remain available.',
+  'Рейтинг формується після завершення голосування.': 'The ranking is available after voting ends.',
+  "Обліковий запис виконавця не прив'язано до підрядника.":
+    "The executor's account is not linked to a contractor.",
+  'Реалізацію завершено — зміни не приймаються.': 'Implementation is completed — no further changes.',
+  'Невідомий статус етапу.': 'Unknown stage status.',
+  'Опишіть, що виконано на етапі.': 'Describe what was done in this stage.',
+  'До звіту можна додати не більше 10 файлів.': 'A report can have at most 10 files.',
+  'Картку реалізації можна створити лише для проєкту-переможця.':
+    'An implementation card can be created only for a winning project.',
+  'Для цього проєкту картку реалізації вже створено.':
+    'An implementation card already exists for this project.',
+  'Плановий кінець не може бути раніше початку.': 'The planned end cannot be before the start.',
+  'Звіт уже розглянуто.': 'The report has already been reviewed.',
+  'Невідоме рішення.': 'Unknown decision.',
+  'Невідомий статус реалізації.': 'Unknown implementation status.',
+  'Немає активної кампанії громадського бюджету.': 'There is no active participatory budget campaign.',
+  'Ця категорія не відкрита в поточній кампанії.': 'This category is not open in the current campaign.',
+  'Редагувати можна лише чернетку або проєкт, повернутий на доопрацювання.':
+    'Only a draft or a project returned for revision can be edited.',
+  'Оберіть точку на карті або приберіть її повністю.': 'Pick a point on the map or remove it completely.',
+  'Додавати файли можна лише до чернетки або проєкту на доопрацюванні.':
+    'Files can be added only to a draft or a project under revision.',
+  'Видаляти файли можна лише з чернетки або проєкту на доопрацюванні.':
+    'Files can be removed only from a draft or a project under revision.',
+  'Призначити модератора можна лише проєкту в черзі модерації.':
+    'A moderator can be assigned only to a project in the moderation queue.',
+  'Немає модератора, який міг би розглянути цей проєкт.':
+    'There is no moderator who could review this project.',
+  'Автор проєкту не може бути його модератором.': 'The author of a project cannot be its moderator.',
+  'Обраний користувач не є модератором.': 'The selected user is not a moderator.',
+  'Проєкт не перебуває на модерації.': 'The project is not in moderation.',
+  'Проєкт не перебуває на експертизі.': 'The project is not in expert review.',
+  'Оберіть вид експертизи.': 'Choose the review type.',
+  'Для повернення або відхилення потрібен коментар експерта.':
+    "Returning or rejecting requires the expert's comment.",
+  'Зараз немає оголошеної кампанії.': 'There is no announced campaign right now.',
+  'Немає жодного голосу': 'No votes',
+  'Вміщується в залишок ліміту': 'Fits into the remaining limit',
+  'Не вміщується в залишок ліміту': 'Does not fit into the remaining limit',
+  'За однакової кількості голосів вище стоїть проєкт, за який проголосувало більше виборців; далі — раніше зареєстрований.':
+    'With equal votes, the project with more voters ranks higher; then the one registered earlier.',
+  'Ваш вибір': 'Your choice',
 }

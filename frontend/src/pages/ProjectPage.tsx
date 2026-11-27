@@ -37,6 +37,7 @@ import {
   formatMoney,
   projectStatus,
   reviewType,
+  votesWord,
 } from '../api/labels'
 import { useVotesChanged } from '../api/signalr'
 import type { MyBallot, ProjectDetails, StatusHistoryItem } from '../api/types'
@@ -128,7 +129,7 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
     try {
       const b = await api<MyBallot>(`/api/voting/${p.projectId}`, { method: 'POST' })
       setBallot(b)
-      message.success(t('Голос враховано. Лишилось голосів: {{n}}', { n: b.remaining }))
+      message.success(t('Голос враховано. Лишилось: {{n}}', { n: votesWord(b.remaining) }))
       onChange(await api<ProjectDetails>(`/api/projects/${p.projectId}`))
     } catch (e) {
       message.error((e as Error).message, 6)
