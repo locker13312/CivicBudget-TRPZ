@@ -27,13 +27,24 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { decisionNames, formatDateTime, formatMoney, reviewType } from '../api/labels'
+import {
+  addWorkingDays,
+  daysWord,
+  decisionNames,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  MODERATION_WORKING_DAYS,
+  reviewType,
+  workingDaysUntil,
+} from '../api/labels'
 import type {
   ModerationQueue,
   NotificationItem,
@@ -42,7 +53,40 @@ import type {
   ProjectListItem,
   SimilarProject,
 } from '../api/types'
+import { useAuth } from '../auth/AuthContext'
 import { LoadState, PageTitle, StatusTag, useLoad } from '../components/common'
+
+/** Строк модерації: 10 робочих днів від подання; прострочені — червоним. */
+function DeadlineTag({ submittedAt }: { submittedAt: string | null }) {
+  const { t } = useTranslation()
+  if (!submittedAt) return <>—</>
+  const deadline = addWorkingDays(new Date(submittedAt), MODERATION_WORKING_DAYS)
+  const left = workingDaysUntil(deadline)
+  const color = left < 0 ? 'error' : left <= 2 ? 'warning' : 'default'
+  return (
+    <Tooltip
+      title={`${t('Подано')} ${formatDate(submittedAt)} · ${t('строк')} ${formatDate(deadline.toISOString())}`}
+    >
+      <Tag color={color} style={{ marginInlineEnd: 0 }}>
+        {left < 0
+          ? `${t('прострочено на')} ${daysWord(-left)}`
+          : left === 0
+            ? t('строк сьогодні')
+            : `${t('лишилось')} ${daysWord(left)}`}
+      </Tag>
+    </Tooltip>
+  )
+}
+
+/** Позначка «Ваш проєкт»: власний проєкт розглядає інший працівник. */
+function OwnTag() {
+  const { t } = useTranslation()
+  return (
+    <Tooltip title={t('Ви автор цього проєкту, тому розглядати його має інший працівник.')}>
+      <Tag color="gold">{t('Ваш проєкт')}</Tag>
+    </Tooltip>
+  )
+}
 import { SinglePointMap } from '../components/ProjectMap'
 
 /** Короткий огляд проєкту для модератора й експерта. */
@@ -122,31 +166,41 @@ function ProjectReview({ p }: { p: ProjectDetails }) {
 
 export function ModerationPage() {
   const { t } = useTranslation()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const own = (p: ProjectListItem) => p.authorId === user?.userId
   const { data, loading, error, reload } = useLoad(() => api<ModerationQueue>('/api/moderation/queue'), [])
   const [reviewId, setReviewId] = useState<number | null>(null)
   const [assignFor, setAssignFor] = useState<ProjectListItem | null>(null)
-  const [assignTo, setAssignTo] = useState<number | null>(null)
+  // 0 — автоматично: модератор з найменшою кількістю проєктів у роботі (задача 9)
+  const [assignTo, setAssignTo] = useState<number>(0)
 
-  const publish = async (id: number) => {
-    try {
-      await api(`/api/moderation/${id}/publish`, { method: 'POST' })
-      message.success(t('Проєкт опубліковано — він з’явився в каталозі'))
-      void reload()
-    } catch (e) {
-      message.error((e as Error).message)
-    }
-  }
+  const publish = (p: ProjectListItem) =>
+    modal.confirm({
+      title: t('Опублікувати «{{title}}»?', { title: p.title }),
+      content: t('Проєкт з’явиться в каталозі й братиме участь у голосуванні. Автор отримає сповіщення.'),
+      okText: t('Опублікувати'),
+      cancelText: t('Скасувати'),
+      onOk: async () => {
+        try {
+          await api(`/api/moderation/${p.projectId}/publish`, { method: 'POST' })
+          message.success(t('Проєкт опубліковано, він з’явився в каталозі'))
+          void reload()
+        } catch (e) {
+          message.error((e as Error).message)
+        }
+      },
+    })
 
   const assign = async () => {
-    if (!assignFor || !assignTo) return
+    if (!assignFor) return
     try {
-      await api(`/api/moderation/${assignFor.projectId}/assign`, {
+      const r = await api<{ message: string }>(`/api/moderation/${assignFor.projectId}/assign`, {
         method: 'POST',
-        body: { moderatorId: assignTo },
+        body: { moderatorId: assignTo || null },
       })
-      message.success(t('Модератора призначено'))
+      message.success(t(r.message))
       setAssignFor(null)
       void reload()
     } catch (e) {
@@ -159,13 +213,27 @@ export function ModerationPage() {
       title: t('Проєкт'),
       render: (_: unknown, p: ProjectListItem) => (
         <>
-          <b>{p.title}</b>
+          <b>{p.title}</b> {own(p) && <OwnTag />}
           <div style={{ color: '#8c8c8c', fontSize: 12 }}>
             {p.regNumber} · {t(p.categoryName)} · {t(p.districtName)} · {p.authorName}
           </div>
         </>
       ),
     },
+    ...(ready
+      ? []
+      : [
+          {
+            title: t('Строк'),
+            width: 190,
+            render: (_: unknown, p: ProjectListItem) =>
+              p.status === 'revision' ? (
+                <Typography.Text type="secondary">{t('у автора')}</Typography.Text>
+              ) : (
+                <DeadlineTag submittedAt={p.submittedAt} />
+              ),
+          },
+        ]),
     {
       title: t('Вартість'),
       dataIndex: 'cost',
@@ -191,7 +259,8 @@ export function ModerationPage() {
               type="primary"
               size="small"
               icon={<SendOutlined />}
-              onClick={() => void publish(p.projectId)}
+              disabled={own(p)}
+              onClick={() => publish(p)}
             >
               {t('Опублікувати')}
             </Button>
@@ -200,6 +269,7 @@ export function ModerationPage() {
               type="primary"
               size="small"
               icon={<AuditOutlined />}
+              disabled={own(p)}
               onClick={() => setReviewId(p.projectId)}
             >
               {t('Перевірити')}
@@ -209,7 +279,7 @@ export function ModerationPage() {
             trigger={['click']}
             menu={{
               items: [
-                { key: 'review', icon: <AuditOutlined />, label: t('Перевірити') },
+                { key: 'review', icon: <AuditOutlined />, label: t('Перевірити'), disabled: own(p) },
                 { key: 'assign', icon: <UserAddOutlined />, label: t('Призначити модератора') },
                 { key: 'view', icon: <EyeOutlined />, label: t('Відкрити картку') },
               ],
@@ -217,7 +287,7 @@ export function ModerationPage() {
                 if (key === 'review') setReviewId(p.projectId)
                 if (key === 'assign') {
                   setAssignFor(p)
-                  setAssignTo(p.moderatorId)
+                  setAssignTo(p.moderatorId ?? 0)
                 }
                 if (key === 'view') navigate(`/projects/${p.projectId}`)
               },
@@ -304,10 +374,14 @@ export function ModerationPage() {
         <Typography.Paragraph>{assignFor?.title}</Typography.Paragraph>
         <Select
           style={{ width: '100%' }}
-          value={assignTo ?? undefined}
+          value={assignTo}
           onChange={setAssignTo}
-          options={(data?.moderators ?? []).map((m) => ({ value: m.id, label: m.name }))}
-          placeholder={t('Оберіть модератора')}
+          options={[
+            { value: 0, label: t('Автоматично — найменше завантажений модератор') },
+            ...(data?.moderators ?? [])
+              .filter((m) => m.id !== assignFor?.authorId)
+              .map((m) => ({ value: m.id, label: m.name })),
+          ]}
         />
       </Modal>
     </>
@@ -324,7 +398,7 @@ function ModerationDrawer({
   onDone: () => void
 }) {
   const { t } = useTranslation()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const [form] = Form.useForm<{ decision: string; comment?: string; duplicateOfId?: number }>()
   const decision = Form.useWatch('decision', form)
   const [busy, setBusy] = useState(false)
@@ -348,7 +422,26 @@ function ModerationDrawer({
     [data],
   )
 
-  const submit = async (v: { decision: string; comment?: string; duplicateOfId?: number }) => {
+  // наслідки рішень, які варто підтвердити (рішення фіксується в Review і змінює статус — тригер сповістить автора)
+  const consequences: Record<string, string> = {
+    reject: 'Проєкт буде відхилено остаточно, автор отримає ваше обґрунтування.',
+    duplicate: 'Проєкт буде відхилено як дублікат із посиланням на оригінал.',
+    revise: 'Проєкт повернеться автору; після доопрацювання він подасть його повторно.',
+  }
+
+  const submit = (v: { decision: string; comment?: string; duplicateOfId?: number }) => {
+    if (!consequences[v.decision]) return void send(v)
+    modal.confirm({
+      title: t('Підтвердити рішення?'),
+      content: t(consequences[v.decision]),
+      okText: t('Підтвердити'),
+      okButtonProps: { danger: v.decision !== 'revise' },
+      cancelText: t('Скасувати'),
+      onOk: () => send(v),
+    })
+  }
+
+  const send = async (v: { decision: string; comment?: string; duplicateOfId?: number }) => {
     setBusy(true)
     try {
       await api(`/api/moderation/${projectId}/decision`, { method: 'POST', body: v })
@@ -414,7 +507,7 @@ function ModerationDrawer({
                 <Form.Item name="decision">
                   <Radio.Group>
                     <Space direction="vertical">
-                      <Radio value="approve">{t('✓ Допустити (далі — публікація)')}</Radio>
+                      <Radio value="approve">{t('Допустити (далі — публікація)')}</Radio>
                       <Radio value="expertise">{t('На експертизу')}</Radio>
                       <Radio value="revise">{t('Повернути на доопрацювання (з коментарем)')}</Radio>
                       <Radio value="reject">{t('Відхилити (з обґрунтуванням)')}</Radio>
@@ -458,6 +551,7 @@ function ModerationDrawer({
 
 export function ExpertisePage() {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const { message } = App.useApp()
   const { data, loading, error, reload } = useLoad(() => api<ProjectListItem[]>('/api/expertise'), [])
   const [selected, setSelected] = useState<number | null>(null)
@@ -522,11 +616,14 @@ export function ExpertisePage() {
               {
                 title: '',
                 width: 150,
-                render: (_, p) => (
-                  <Button type="primary" size="small" onClick={() => setSelected(p.projectId)}>
-                    {t('Дати висновок')}
-                  </Button>
-                ),
+                render: (_, p) =>
+                  p.authorId === user?.userId ? (
+                    <OwnTag />
+                  ) : (
+                    <Button type="primary" size="small" onClick={() => setSelected(p.projectId)}>
+                      {t('Дати висновок')}
+                    </Button>
+                  ),
               },
             ]}
           />
@@ -605,6 +702,11 @@ export function NotificationsPage() {
   const navigate = useNavigate()
   const { data, loading, error, reload } = useLoad(() => api<NotificationItem[]>('/api/notifications'), [])
 
+  const markRead = async (n: NotificationItem) => {
+    await api(`/api/notifications/${n.notificationId}/read`, { method: 'POST' })
+    void reload()
+  }
+
   const open = async (n: NotificationItem) => {
     if (!n.isRead) await api(`/api/notifications/${n.notificationId}/read`, { method: 'POST' })
     if (n.projectId) navigate(`/projects/${n.projectId}`)
@@ -636,6 +738,30 @@ export function NotificationsPage() {
               <List.Item
                 style={{ cursor: 'pointer', background: n.isRead ? undefined : '#f0f6ff', paddingInline: 12 }}
                 onClick={() => void open(n)}
+                actions={[
+                  ...(n.projectId
+                    ? [
+                        <Button key="open" type="link" size="small">
+                          {t('До проєкту')}
+                        </Button>,
+                      ]
+                    : []),
+                  ...(!n.isRead
+                    ? [
+                        <Button
+                          key="read"
+                          type="link"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void markRead(n)
+                          }}
+                        >
+                          {t('Позначити прочитаним')}
+                        </Button>,
+                      ]
+                    : []),
+                ]}
               >
                 <List.Item.Meta
                   avatar={

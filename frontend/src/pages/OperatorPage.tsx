@@ -1,26 +1,39 @@
-import { FileDoneOutlined, UserOutlined } from '@ant-design/icons'
+import { FileDoneOutlined, SearchOutlined } from '@ant-design/icons'
 import {
   Alert,
   App,
   Button,
   Card,
   Col,
+  DatePicker,
   Descriptions,
   Empty,
+  Flex,
+  Input,
   InputNumber,
+  List,
   Result,
   Row,
   Select,
-  Spin,
   Statistic,
   Table,
   Tag,
 } from 'antd'
-import { useRef, useState } from 'react'
+import type { Dayjs } from 'dayjs'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import { formatDate, formatMoney, verificationNames } from '../api/labels'
-import type { Campaign, PagedResult, ProjectListItem, References, UserRow } from '../api/types'
+import { formatDate, formatMoney, verificationNames, votesWord } from '../api/labels'
+import type { Campaign, PagedResult, ProjectListItem, References, VoterStatus } from '../api/types'
+
+const ageOf = (birth: string | null) => {
+  if (!birth) return null
+  const b = new Date(birth)
+  const now = new Date()
+  let age = now.getFullYear() - b.getFullYear()
+  if (now < new Date(now.getFullYear(), b.getMonth(), b.getDate())) age--
+  return age
+}
 import { LoadState, NoCampaign, PageTitle, useLoad } from '../components/common'
 
 /** Оператор пункту голосування: внесення паперового бюлетеня (виборець, пункт, проєкти й кількість голосів). */
@@ -38,30 +51,48 @@ export function OperatorPage() {
       ),
     }
   }, [])
-  const [voters, setVoters] = useState<UserRow[]>([])
+  const [name, setName] = useState('')
+  const [birth, setBirth] = useState<Dayjs | null>(null)
+  const [voters, setVoters] = useState<VoterStatus[] | null>(null)
   const [searching, setSearching] = useState(false)
-  const [voter, setVoter] = useState<UserRow | null>(null)
+  const [voter, setVoter] = useState<VoterStatus | null>(null)
   const [station, setStation] = useState<number | undefined>()
   const [counts, setCounts] = useState<Record<number, number>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout>>()
-
-  const searchVoters = (q: string) => {
-    clearTimeout(timer.current)
-    if (q.trim().length < 2) return
-    timer.current = setTimeout(async () => {
-      setSearching(true)
-      try {
-        setVoters(await api<UserRow[]>(`/api/operator/voters?q=${encodeURIComponent(q.trim())}`))
-      } finally {
-        setSearching(false)
-      }
-    }, 350)
+  // пошук за ПІБ і датою народження (ПЦ-14): однофамільців розрізняє дата
+  const searchVoters = async () => {
+    if (name.trim().length < 2) return
+    setSearching(true)
+    setVoter(null)
+    try {
+      const q = new URLSearchParams({ name: name.trim() })
+      if (birth) q.set('birthDate', birth.format('YYYY-MM-DD'))
+      setVoters(await api<VoterStatus[]>(`/api/operator/voters?${q}`))
+    } catch (e) {
+      message.error((e as Error).message)
+    } finally {
+      setSearching(false)
+    }
   }
 
   const c = base.data?.campaign
+  const age = voter ? ageOf(voter.birthDate) : null
+  // ДП-08: виборець, який уже голосував онлайн або використав усі голоси, бюлетень не подає
+  const blockReason = !voter
+    ? null
+    : voter.channel === 'online'
+      ? t('Виборець уже голосував онлайн у цій кампанії. Паперовий бюлетень не приймається.')
+      : voter.channel === 'paper' && voter.remaining === 0
+        ? t('Виборець уже подав паперовий бюлетень і використав усі голоси.')
+        : voter.isBlocked
+          ? t('Обліковий запис виборця заблоковано.')
+          : voter.verificationStatus !== 'verified'
+            ? t('Особу виборця не верифіковано.')
+            : c && age != null && age < c.minVoterAge
+              ? t('Виборцю ще немає {{n}} років.', { n: c.minVoterAge })
+              : null
   const total = Object.values(counts).reduce((s, n) => s + (n || 0), 0)
 
   const submit = async () => {
@@ -76,8 +107,8 @@ export function OperatorPage() {
         method: 'POST',
         body: { voterId: voter.userId, stationId: station, items },
       })
-      setDone(`${r.message} ${t('Виборець')}: ${voter.fullName}.`)
-      message.success(r.message)
+      setDone(`${t(r.message)} ${t('Виборець')}: ${voter.fullName}.`)
+      message.success(t(r.message))
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -89,7 +120,9 @@ export function OperatorPage() {
     setDone(null)
     setVoter(null)
     setCounts({})
-    setVoters([])
+    setVoters(null)
+    setName('')
+    setBirth(null)
     setError(null)
   }
 
@@ -117,39 +150,113 @@ export function OperatorPage() {
             <Row gutter={[24, 24]}>
               <Col xs={24} lg={9}>
                 <Card title={t('1. Виборець і пункт голосування')}>
-                  <Select
-                    showSearch
-                    style={{ width: '100%' }}
-                    size="large"
-                    placeholder={t('Прізвище, ім’я, e-mail або номер')}
-                    filterOption={false}
-                    onSearch={searchVoters}
-                    notFoundContent={searching ? <Spin size="small" /> : null}
-                    value={voter?.userId}
-                    onChange={(id) => setVoter(voters.find((v) => v.userId === id) ?? null)}
-                    options={voters.map((v) => ({ value: v.userId, label: `${v.fullName} (#${v.userId})` }))}
-                    suffixIcon={<UserOutlined />}
-                  />
-                  {voter && (
-                    <Descriptions
-                      size="small"
-                      column={1}
-                      style={{ marginTop: 16 }}
-                      bordered
-                      items={[
-                        { label: t('ПІБ'), children: voter.fullName },
-                        { label: t('Дата народження'), children: formatDate(voter.birthDate) },
-                        {
-                          label: t('Верифікація'),
-                          children: (
-                            <Tag color={voter.verificationStatus === 'verified' ? 'green' : 'orange'}>
-                              {t(verificationNames[voter.verificationStatus] ?? voter.verificationStatus)}
-                            </Tag>
-                          ),
-                        },
-                        { label: t('Район'), children: voter.districtName ? t(voter.districtName) : '—' },
-                      ]}
+                  <Flex vertical gap={8}>
+                    <Input
+                      size="large"
+                      placeholder={t('Прізвище та ім’я')}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onPressEnter={() => void searchVoters()}
+                      allowClear
                     />
+                    <Flex gap={8}>
+                      <DatePicker
+                        size="large"
+                        format="DD.MM.YYYY"
+                        placeholder={t('Дата народження')}
+                        value={birth}
+                        onChange={setBirth}
+                        style={{ flex: 1 }}
+                      />
+                      <Button
+                        size="large"
+                        type="primary"
+                        icon={<SearchOutlined />}
+                        loading={searching}
+                        disabled={name.trim().length < 2}
+                        onClick={() => void searchVoters()}
+                      >
+                        {t('Знайти')}
+                      </Button>
+                    </Flex>
+                  </Flex>
+                  {voters && !voter && (
+                    <List
+                      size="small"
+                      bordered
+                      style={{ marginTop: 12 }}
+                      dataSource={voters}
+                      locale={{ emptyText: t('Виборця не знайдено. Перевірте ПІБ і дату народження.') }}
+                      renderItem={(v) => (
+                        <List.Item
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setVoter(v)}
+                          actions={[
+                            v.channel ? (
+                              <Tag key="ch" color={v.channel === 'online' ? 'red' : 'orange'}>
+                                {v.channel === 'online' ? t('голосував онлайн') : t('паперовий бюлетень')}
+                              </Tag>
+                            ) : (
+                              <Tag key="ch" color="green">
+                                {t('не голосував')}
+                              </Tag>
+                            ),
+                          ]}
+                        >
+                          <List.Item.Meta
+                            title={v.fullName}
+                            description={`${formatDate(v.birthDate)}${v.districtName ? ' · ' + t(v.districtName) : ''}`}
+                          />
+                        </List.Item>
+                      )}
+                    />
+                  )}
+                  {voter && (
+                    <>
+                      <Descriptions
+                        size="small"
+                        column={1}
+                        style={{ marginTop: 16 }}
+                        bordered
+                        items={[
+                          { label: t('ПІБ'), children: voter.fullName },
+                          {
+                            label: t('Дата народження'),
+                            children: `${formatDate(voter.birthDate)}${age != null ? ` (${age})` : ''}`,
+                          },
+                          {
+                            label: t('Верифікація'),
+                            children: (
+                              <Tag color={voter.verificationStatus === 'verified' ? 'green' : 'orange'}>
+                                {t(verificationNames[voter.verificationStatus] ?? voter.verificationStatus)}
+                              </Tag>
+                            ),
+                          },
+                          { label: t('Район'), children: voter.districtName ? t(voter.districtName) : '—' },
+                          {
+                            label: t('Голосування'),
+                            children: voter.channel
+                              ? `${voter.channel === 'online' ? t('онлайн') : t('паперовий бюлетень')} · ${t('лишилось')} ${votesWord(voter.remaining)}`
+                              : `${t('ще не голосував')} · ${votesWord(voter.remaining)}`,
+                          },
+                        ]}
+                      />
+                      {blockReason ? (
+                        <Alert type="error" showIcon style={{ marginTop: 12 }} message={blockReason} />
+                      ) : (
+                        <Alert
+                          type="success"
+                          showIcon
+                          style={{ marginTop: 12 }}
+                          message={t('Виборець може проголосувати: {{n}}.', {
+                            n: votesWord(voter.remaining),
+                          })}
+                        />
+                      )}
+                      <Button type="link" style={{ paddingInline: 0 }} onClick={() => setVoter(null)}>
+                        {t('Обрати іншого виборця')}
+                      </Button>
+                    </>
                   )}
                   <Select
                     style={{ width: '100%', marginTop: 16 }}
@@ -164,7 +271,7 @@ export function OperatorPage() {
                     showIcon
                     style={{ marginTop: 16 }}
                     message={t(
-                      'Перевірки (вік, верифікація, ліміти, один спосіб голосування) виконує база даних.',
+                      'Вік, верифікацію, ліміти голосів і те, що виборець не голосував онлайн, система перевіряє під час внесення.',
                     )}
                   />
                 </Card>
@@ -223,7 +330,7 @@ export function OperatorPage() {
                     size="large"
                     icon={<FileDoneOutlined />}
                     style={{ marginTop: 16 }}
-                    disabled={!voter || !station || total === 0}
+                    disabled={!voter || !!blockReason || !station || total === 0}
                     loading={busy}
                     onClick={() => void submit()}
                   >

@@ -40,7 +40,6 @@ import {
 import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -71,11 +70,13 @@ import type {
   AuditRow,
   Campaign,
   PagedResult,
+  RatingResponse,
   References,
+  StageTransitionCheck,
   Statistics,
   UserRow,
-  WinnerRow,
 } from '../api/types'
+import { RatingView } from '../components/RatingView'
 import { CampaignTag, ExportButton, LoadState, PageTitle, useLoad } from '../components/common'
 
 /** Вибір кампанії для адмін-сторінок (за замовчуванням — поточна). */
@@ -188,7 +189,7 @@ export function AdminCampaignPage() {
   )
   const [form] = Form.useForm<CampaignForm>()
   const [saving, setSaving] = useState(false)
-  const [rating, setRating] = useState<WinnerRow[] | null>(null)
+  const [rating, setRating] = useState<RatingResponse | null>(null)
   const [selecting, setSelecting] = useState(false)
   const [creating, setCreating] = useState(false)
   const c = campaign.data
@@ -197,8 +198,15 @@ export function AdminCampaignPage() {
     if (c) form.setFieldsValue(toForm(c))
   }, [c, form])
 
-  // рейтинг скидаємо лише при виборі іншої кампанії (не після перезавантаження поточної)
-  useEffect(() => setRating(null), [selected])
+  // рейтинг береться з БД для будь-якої кампанії після завершення голосування — не зникає після оновлення сторінки
+  const ratingAvailable = !!c && ['counting', 'implementation', 'closed'].includes(c.status)
+  useEffect(() => {
+    setRating(null)
+    if (!c || !ratingAvailable) return
+    api<RatingResponse>(`/api/admin/campaigns/${c.campaignId}/rating`)
+      .then(setRating)
+      .catch(() => undefined)
+  }, [c, ratingAvailable])
 
   const save = async () => {
     const v = await form.validateFields().catch(() => null)
@@ -216,10 +224,48 @@ export function AdminCampaignPage() {
     }
   }
 
-  const setStatus = (status: string) =>
+  // Перед перемиканням сервер каже, чи можна (лише по черзі, назад — не після підрахунку), що станеться і що не завершено.
+  const setStatus = async (status: string) => {
+    let check: StageTransitionCheck
+    try {
+      check = await api<StageTransitionCheck>(
+        `/api/admin/campaigns/${c!.campaignId}/status-check${query({ to: status })}`,
+      )
+    } catch (e) {
+      message.error((e as Error).message)
+      return
+    }
+    const title = `${t(campaignStatus[c!.status])} → ${t(campaignStatus[status])}`
+    if (!check.allowed) {
+      modal.info({ title, content: t(check.blocker ?? ''), okText: t('Зрозуміло') })
+      return
+    }
     modal.confirm({
-      title: t('Перемкнути етап кампанії?'),
-      content: `${t(campaignStatus[c!.status])} → ${t(campaignStatus[status])}`,
+      title: `${t('Перемкнути етап?')} ${title}`,
+      width: 520,
+      content: (
+        <>
+          <ul style={{ paddingInlineStart: 18, margin: '8px 0' }}>
+            {check.consequences.map((x) => (
+              <li key={x}>{t(x)}</li>
+            ))}
+          </ul>
+          {check.warnings.length > 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              message={t('Зверніть увагу')}
+              description={
+                <ul style={{ paddingInlineStart: 18, margin: 0 }}>
+                  {check.warnings.map((x) => (
+                    <li key={x}>{t(x)}</li>
+                  ))}
+                </ul>
+              }
+            />
+          )}
+        </>
+      ),
       okText: t('Перемкнути'),
       cancelText: t('Скасувати'),
       onOk: async () => {
@@ -233,13 +279,26 @@ export function AdminCampaignPage() {
         }
       },
     })
+  }
 
   // «Визначити переможців» — збережена процедура usp_SelectWinners (ADO.NET, SqlDataReader)
+  const confirmSelectWinners = () =>
+    modal.confirm({
+      title: t('Визначити переможців?'),
+      width: 520,
+      content: t(
+        'Голоси буде підраховано, проєкти в кожній категорії відібрано за рейтингом у межах ліміту. Переможці й автори отримають сповіщення, кампанія перейде на етап «Реалізація». Скасувати це не можна.',
+      ),
+      okText: t('Визначити переможців'),
+      cancelText: t('Скасувати'),
+      onOk: () => selectWinners(),
+    })
+
   const selectWinners = async () => {
     setSelecting(true)
     try {
       setRating(
-        await api<WinnerRow[]>(`/api/admin/campaigns/${c!.campaignId}/select-winners`, { method: 'POST' }),
+        await api<RatingResponse>(`/api/admin/campaigns/${c!.campaignId}/select-winners`, { method: 'POST' }),
       )
       message.success(t('Переможців визначено'))
       void campaign.reload()
@@ -286,8 +345,6 @@ export function AdminCampaignPage() {
   }
 
   const statusIdx = c ? campaignStatusOrder.indexOf(c.status) : 0
-  const groups = new Map<string, WinnerRow[]>()
-  for (const r of rating ?? []) groups.set(r.categoryName, [...(groups.get(r.categoryName) ?? []), r])
 
   return (
     <>
@@ -322,11 +379,13 @@ export function AdminCampaignPage() {
                   current={statusIdx}
                   size="small"
                   responsive
-                  onChange={(i) => i !== statusIdx && setStatus(campaignStatusOrder[i])}
+                  onChange={(i) => i !== statusIdx && void setStatus(campaignStatusOrder[i])}
                   items={campaignStatusOrder.map((s) => ({ title: t(campaignStatus[s]) }))}
                 />
                 <Typography.Paragraph type="secondary" style={{ margin: '12px 0 0' }}>
-                  {t('Натисніть на етап, щоб перемкнути кампанію.')}
+                  {t(
+                    'Етапи перемикаються по черзі. До підрахунку голосів можна повернутися на крок назад, після — ні.',
+                  )}
                 </Typography.Paragraph>
                 <Divider />
                 <Flex gap={16} align="center" wrap>
@@ -336,91 +395,38 @@ export function AdminCampaignPage() {
                     icon={<CrownOutlined />}
                     loading={selecting}
                     disabled={c.status !== 'counting'}
-                    onClick={() => void selectWinners()}
+                    onClick={confirmSelectWinners}
                   >
                     {t('Визначити переможців')}
                   </Button>
                   <Typography.Text type="secondary">
                     {c.status === 'counting'
-                      ? t('Процедура usp_SelectWinners відбере проєкти в межах лімітів категорій.')
+                      ? t('Проєкти буде відібрано за кількістю голосів у межах ліміту кожної категорії.')
                       : t('Доступно на етапі «Підрахунок голосів».')}
                   </Typography.Text>
                 </Flex>
               </Card>
             )}
 
-            {rating && (
+            {rating && !creating && (
               <Card
                 title={
                   <Space>
-                    <TrophyFilled style={{ color: '#d4a017' }} /> {t('Рейтинг і переможці')}
+                    <TrophyFilled style={{ color: '#b8860b' }} />
+                    {rating.final ? t('Рейтинг і переможці') : t('Попередній рейтинг')}
                   </Space>
                 }
                 extra={
-                  <ExportButton
-                    path={`/api/reports/winners?campaignId=${c.campaignId}`}
-                    label="Перелік переможців"
-                  />
+                  rating.final && (
+                    <ExportButton
+                      path={`/api/reports/winners?campaignId=${c.campaignId}`}
+                      label="Перелік переможців"
+                    />
+                  )
                 }
                 style={{ marginBottom: 24 }}
               >
-                {[...groups.entries()].map(([cat, rows]) => {
-                  let used = 0
-                  return (
-                    <div key={cat} style={{ marginBottom: 20 }}>
-                      <Typography.Title level={5}>
-                        {t(cat)} · {t('ліміт')} {formatMoney(rows[0].categoryLimit)}
-                      </Typography.Title>
-                      <Table
-                        size="small"
-                        rowKey="projectId"
-                        pagination={false}
-                        dataSource={rows}
-                        scroll={{ x: 700 }}
-                        rowClassName={(r) => (r.isWinner ? 'row-winner' : '')}
-                        columns={[
-                          { title: t('Місце'), dataIndex: 'place', width: 70 },
-                          {
-                            title: t('Проєкт'),
-                            render: (_, r) => (
-                              <Link to={`/projects/${r.projectId}`}>
-                                {r.regNumber} {r.title}
-                              </Link>
-                            ),
-                          },
-                          { title: t('Голоси'), dataIndex: 'votes', align: 'right', width: 80 },
-                          {
-                            title: t('Вартість'),
-                            dataIndex: 'cost',
-                            align: 'right',
-                            width: 130,
-                            render: (v: number) => formatMoney(v),
-                          },
-                          {
-                            title: t('Залишок ліміту'),
-                            align: 'right',
-                            width: 150,
-                            render: (_, r) => {
-                              const before = r.categoryLimit - used
-                              if (r.isWinner) used += r.cost
-                              return formatMoney(before)
-                            },
-                          },
-                          {
-                            title: t('Результат'),
-                            width: 170,
-                            render: (_, r) =>
-                              r.isWinner ? (
-                                <Tag color="success">{t('Переможець')}</Tag>
-                              ) : (
-                                <Tag>{t('Не вміщується в ліміт')}</Tag>
-                              ),
-                          },
-                        ]}
-                      />
-                    </div>
-                  )
-                })}
+                <RatingView rating={rating} />
               </Card>
             )}
 
@@ -1060,7 +1066,13 @@ export function AdminUsersPage() {
                           ? { key: 'unblock', icon: <UnlockOutlined />, label: t('Розблокувати') }
                           : { key: 'block', icon: <LockOutlined />, label: t('Заблокувати'), danger: true },
                         { key: '2fa-on', icon: <SafetyOutlined />, label: t('Увімкнути 2FA') },
-                        { key: '2fa-off', icon: <SafetyOutlined />, label: t('Вимкнути 2FA') },
+                        {
+                          key: '2fa-off',
+                          icon: <SafetyOutlined />,
+                          label: t('Вимкнути 2FA'),
+                          // для модератора, експерта й адміністратора 2FA обов'язкова (ТЗ ч.2 п.3.3)
+                          disabled: u.roles.some((x) => ['moderator', 'expert', 'admin'].includes(x)),
+                        },
                       ],
                       onClick: ({ key }) => {
                         if (key === 'roles') {
@@ -1073,9 +1085,13 @@ export function AdminUsersPage() {
                               key === 'block'
                                 ? t('Заблокувати користувача?')
                                 : t('Розблокувати користувача?'),
-                            content: u.fullName,
-                            okText: t('Так'),
-                            cancelText: t('Ні'),
+                            content:
+                              key === 'block'
+                                ? `${u.fullName}. ${t('Користувач не зможе увійти в систему. Уже віддані голоси й подані проєкти лишаються.')}`
+                                : `${u.fullName}. ${t('Користувач знову зможе входити в систему.')}`,
+                            okText: key === 'block' ? t('Заблокувати') : t('Розблокувати'),
+                            okButtonProps: { danger: key === 'block' },
+                            cancelText: t('Скасувати'),
                             onOk: () =>
                               act(() =>
                                 api(`/api/admin/users/${u.userId}/block`, {

@@ -30,6 +30,20 @@ export function MyProjectsPage() {
         }
       />
       {flash && <Alert type="success" showIcon message={flash} style={{ marginBottom: 16 }} closable />}
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={t('Що можна змінювати')}
+        description={
+          <ul style={{ margin: 0, paddingInlineStart: 18 }}>
+            <li>{t('Чернетка — усе: опис, кошторис, місце, файли. Видно лише вам.')}</li>
+            <li>{t('Подано, на модерації, на експертизі — нічого, проєкт чекає рішення.')}</li>
+            <li>{t('На доопрацюванні — усе, потім «Подати повторно». Номер проєкту зберігається.')}</li>
+            <li>{t('Опубліковано і далі — нічого, проєкт бере участь у голосуванні або реалізується.')}</li>
+          </ul>
+        }
+      />
       <Card>
         <LoadState loading={loading} error={error}>
           <Table

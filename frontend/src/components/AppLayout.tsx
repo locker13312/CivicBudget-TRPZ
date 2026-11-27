@@ -48,7 +48,7 @@ type Item = Required<MenuProps>['items'][number]
 /** Головне меню залежить від ролей користувача (RBAC). */
 function useMenuItems(): Item[] {
   const { t } = useTranslation()
-  const { hasRole } = useAuth()
+  const { user, hasRole } = useAuth()
   const link = (to: string, label: string, icon: React.ReactNode): Item => ({
     key: to,
     icon,
@@ -76,8 +76,14 @@ function useMenuItems(): Item[] {
   if (hasRole('operator')) items.push(link('/operator', 'Паперові бюлетені', <FileDoneOutlined />))
   if (hasRole('executor')) items.push(link('/executor', 'Кабінет виконавця', <ToolOutlined />))
   if (hasRole('resident')) {
-    items.push(link('/voting', 'Голосування', <CheckSquareOutlined />))
-    items.push(link('/my/projects', 'Мої проєкти', <FileTextOutlined />))
+    const residentItems = [
+      link('/voting', 'Голосування', <CheckSquareOutlined />),
+      link('/my/projects', 'Мої проєкти', <FileTextOutlined />),
+    ]
+    // кілька ролей: пункти мешканця окремим підменю, щоб було видно, що до якої ролі належить
+    if ((user?.roles.length ?? 0) > 1)
+      items.push({ key: 'resident', icon: <UserOutlined />, label: t('Мешканець'), children: residentItems })
+    else items.push(...residentItems)
   }
   items.push(
     link('/projects', 'Проєкти', <AppstoreOutlined />),
@@ -256,7 +262,7 @@ export function AppLayout() {
           mode="inline"
           items={items}
           selectedKeys={[selected]}
-          defaultOpenKeys={['admin']}
+          defaultOpenKeys={['admin', 'resident']}
           style={{ border: 'none' }}
         />
       </Drawer>

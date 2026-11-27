@@ -1,11 +1,11 @@
 import { BankOutlined, LockOutlined, MailOutlined, SafetyOutlined } from '@ant-design/icons'
 import { Alert, App, Button, Card, Col, Divider, Form, Input, List, Modal, Row, Tag, Typography } from 'antd'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { roleNames } from '../api/labels'
-import type { UserInfo, UserRow } from '../api/types'
+import type { LoginResponse, UserInfo, UserRow } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { PageTitle } from '../components/common'
 
@@ -14,8 +14,8 @@ const DEMO_PASSWORD = 'Demo123!'
 // Демо-облікові записи (db/CivicBudget_demo.sql) — клік підставляє логін і пароль
 const demoAccounts = [
   { email: 'admin@civicbudget.test', role: 'Адміністратор', note: 'з 2FA' },
-  { email: 'moderator@civicbudget.test', role: 'Модератор' },
-  { email: 'expert@civicbudget.test', role: 'Експерт' },
+  { email: 'moderator@civicbudget.test', role: 'Модератор', note: 'з 2FA' },
+  { email: 'expert@civicbudget.test', role: 'Експерт', note: 'з 2FA' },
   { email: 'operator@civicbudget.test', role: 'Оператор' },
   { email: 'executor@civicbudget.test', role: 'Виконавець' },
   { email: 'author@civicbudget.test', role: 'Автор' },
@@ -49,11 +49,36 @@ export function LoginPage() {
     null,
   )
   const [code, setCode] = useState('')
+  // повторне надсилання коду — не частіше ніж раз на 30 с (так само обмежує сервер)
+  const [resendIn, setResendIn] = useState(0)
+  useEffect(() => {
+    if (resendIn <= 0) return
+    const timer = setTimeout(() => setResendIn((n) => n - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendIn])
+
+  const resend = async () => {
+    if (!challenge) return
+    setError(null)
+    try {
+      const r = await api<LoginResponse>('/api/auth/2fa/resend', {
+        method: 'POST',
+        body: { challengeId: challenge.id },
+      })
+      setChallenge({ ...challenge, message: r.message ?? challenge.message })
+      setCode('')
+      setResendIn(30)
+      message.success(t('Новий код надіслано. Попередній більше не діє.'))
+    } catch (e) {
+      setError((e as Error).message)
+      if ((e as Error).message.includes('Увійдіть ще раз')) setChallenge(null)
+    }
+  }
   const [bankOpen, setBankOpen] = useState(false)
   const [bankUsers, setBankUsers] = useState<UserRow[] | null>(null)
 
   const done = (user: UserInfo) => {
-    message.success(t('Вітаємо, {{name}}!', { name: user.fullName }))
+    message.success(t('Ви увійшли як {{name}}', { name: user.fullName }))
     navigate(from ?? homeFor(user), { replace: true })
   }
 
@@ -66,6 +91,7 @@ export function LoginPage() {
       else {
         setChallenge({ id: step.challengeId, message: step.message, devHint: step.devHint })
         setCode('')
+        setResendIn(30)
       }
     } catch (e) {
       setError((e as Error).message)
@@ -190,6 +216,11 @@ export function LoginPage() {
                 onClick={() => void confirm()}
               >
                 {t('Підтвердити')}
+              </Button>
+              <Button type="link" block disabled={resendIn > 0} onClick={() => void resend()}>
+                {resendIn > 0
+                  ? t('Надіслати код ще раз ({{n}} с)', { n: resendIn })
+                  : t('Надіслати код ще раз')}
               </Button>
               <Button type="link" block onClick={() => setChallenge(null)}>
                 {t('Назад')}

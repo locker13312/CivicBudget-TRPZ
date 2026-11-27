@@ -45,6 +45,18 @@ public class CampaignsController : ControllerBase
     [HttpGet("{id}")]
     public Task<CampaignModel> Get(short id) => _campaigns.GetAsync(id);
 
+    /// <summary>
+    /// Підсумковий рейтинг кампанії (після визначення переможців): причина відбору кожного проєкту
+    /// і залишок бюджету категорій (fn_CategoryBudgetBalance). Відкрита інформація за ТЗ ч.1 п.3.2.
+    /// </summary>
+    [HttpGet("{id}/rating")]
+    public async Task<RatingResponse> Rating(short id)
+    {
+        var rating = await _campaigns.GetRatingAsync(id);
+        if (!rating.Final) throw new CivicBudget.DAL.Infrastructure.BusinessRuleException("Переможців ще не визначено.");
+        return rating;
+    }
+
     /// <summary>Результати голосування (уявлення vw_ProjectResult).</summary>
     [HttpGet("results")]
     public Task<ResultsResponse> Results([FromQuery] short? campaignId) => _campaigns.GetResultsAsync(campaignId);

@@ -30,9 +30,16 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
-import { decisionNames, formatDate, formatDateTime, formatMoney, reviewType } from '../api/labels'
+import {
+  decisionNames,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  projectStatus,
+  reviewType,
+} from '../api/labels'
 import { useVotesChanged } from '../api/signalr'
-import type { MyBallot, ProjectDetails } from '../api/types'
+import type { MyBallot, ProjectDetails, StatusHistoryItem } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { ExportButton, LoadState, PageTitle, ProjectCover, StatusTag, useLoad } from '../components/common'
 import { SinglePointMap } from '../components/ProjectMap'
@@ -66,8 +73,9 @@ export function ProjectPage() {
 function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDetails) => void }) {
   const { t } = useTranslation()
   const { user, hasRole } = useAuth()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const navigate = useNavigate()
+  const [history, setHistory] = useState<StatusHistoryItem[]>([])
   const [subscribed, setSubscribed] = useState<boolean | null>(null)
   const [ballot, setBallot] = useState<MyBallot | null>(null)
   const [voting, setVoting] = useState(false)
@@ -83,6 +91,14 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
       .catch(() => undefined)
   }, [user, p.projectId])
 
+  const canSeeHistory = !!user && (isStaff || p.authorId === user.userId)
+  useEffect(() => {
+    if (canSeeHistory)
+      api<StatusHistoryItem[]>(`/api/projects/${p.projectId}/history`)
+        .then(setHistory)
+        .catch(() => undefined)
+  }, [canSeeHistory, p.projectId, p.status])
+
   useEffect(() => {
     if (canVote)
       api<MyBallot>('/api/voting/my')
@@ -97,6 +113,15 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
     setSubscribed(r.subscribed)
     message.success(r.subscribed ? t('Ви стежите за проєктом') : t('Ви більше не стежите за проєктом'))
   }
+
+  const confirmVote = () =>
+    modal.confirm({
+      title: t('Віддати голос за «{{title}}»?', { title: p.title }),
+      content: t('Голос остаточний: відкликати його чи перенести на інший проєкт не можна.'),
+      okText: t('Віддати голос'),
+      cancelText: t('Скасувати'),
+      onOk: () => vote(),
+    })
 
   const vote = async () => {
     setVoting(true)
@@ -271,6 +296,29 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
               />
             </Card>
           )}
+          {canSeeHistory && history.length > 0 && (
+            <Card title={t('Історія статусів')} style={{ marginTop: 24 }}>
+              <Timeline
+                items={history.map((h) => ({
+                  children: (
+                    <>
+                      <b>{t(projectStatus[h.toStatus] ?? h.toStatus)}</b>
+                      {h.fromStatus && (
+                        <Typography.Text type="secondary">
+                          {' '}
+                          ({t('було')}: {t(projectStatus[h.fromStatus] ?? h.fromStatus)})
+                        </Typography.Text>
+                      )}
+                      <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+                        {formatDateTime(h.createdAt)}
+                        {h.userName && ` · ${h.userName}`}
+                      </div>
+                    </>
+                  ),
+                }))}
+              />
+            </Card>
+          )}
         </Col>
 
         <Col xs={24} lg={8}>
@@ -301,19 +349,18 @@ function Project({ p, onChange }: { p: ProjectDetails; onChange: (p: ProjectDeta
                   block
                   icon={<PlusOutlined />}
                   loading={voting}
-                  onClick={() => void vote()}
+                  onClick={confirmVote}
                 >
                   {t('Голосувати')}
                 </Button>
-                {ballot && (
-                  <Typography.Paragraph
-                    type="secondary"
-                    style={{ marginTop: 8, marginBottom: 0, textAlign: 'center' }}
-                  >
-                    {t('Ваших голосів за проєкт')}: {myVotes} / {ballot.maxVotesPerProject} · {t('лишилось')}:{' '}
-                    {ballot.remaining}
-                  </Typography.Paragraph>
-                )}
+                <Typography.Paragraph
+                  type="secondary"
+                  style={{ marginTop: 8, marginBottom: 0, textAlign: 'center' }}
+                >
+                  {ballot
+                    ? `${t('Ваших голосів за проєкт')}: ${myVotes} / ${ballot.maxVotesPerProject} · ${t('лишилось')}: ${ballot.remaining} / ${ballot.votesPerVoter}`
+                    : t('Завантаження залишку голосів…')}
+                </Typography.Paragraph>
               </>
             )}
             {!user && p.status === 'published' && p.campaignStatus === 'voting' && (

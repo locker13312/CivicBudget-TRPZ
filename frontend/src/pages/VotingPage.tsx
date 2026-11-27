@@ -15,13 +15,14 @@ import {
   Space,
   Statistic,
   Table,
+  Tag,
   Typography,
 } from 'antd'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import { formatMoney } from '../api/labels'
+import { formatMoney, votesWord } from '../api/labels'
 import { useVotesChanged } from '../api/signalr'
 import type { BallotProject, MyBallot } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
@@ -33,7 +34,7 @@ import { LoadState, PageTitle, useLoad } from '../components/common'
  */
 export function VotingPage() {
   const { t } = useTranslation()
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const { user } = useAuth()
   const { data, setData, loading, error, reload } = useLoad(() => api<MyBallot>('/api/voting/my'), [])
   const [busy, setBusy] = useState<number | null>(null)
@@ -43,6 +44,16 @@ export function VotingPage() {
 
   useVotesChanged(() => void reload())
 
+  // голос не можна відкликати чи перенести (ТЗ не передбачає, голоси — історичні дані), тому спершу підтвердження
+  const confirmVote = (p: BallotProject) =>
+    modal.confirm({
+      title: t('Віддати голос за «{{title}}»?', { title: p.title }),
+      content: t('Голос остаточний: відкликати його чи перенести на інший проєкт не можна.'),
+      okText: t('Віддати голос'),
+      cancelText: t('Скасувати'),
+      onOk: () => vote(p),
+    })
+
   const vote = async (p: BallotProject) => {
     setBusy(p.projectId)
     setLastError(null)
@@ -50,7 +61,7 @@ export function VotingPage() {
       const b = await api<MyBallot>(`/api/voting/${p.projectId}`, { method: 'POST' })
       setData(b)
       message.success(
-        t('Голос за «{{title}}» враховано. Лишилось: {{n}}', { title: p.title, n: b.remaining }),
+        t('Голос за «{{title}}» враховано. Лишилось: {{n}}', { title: p.title, n: votesWord(b.remaining) }),
       )
     } catch (e) {
       setLastError((e as Error).message)
@@ -74,7 +85,21 @@ export function VotingPage() {
 
   return (
     <>
-      <PageTitle title={t('Голосування')} subtitle={data?.campaign?.name} help="voting" />
+      <PageTitle
+        title={t('Голосування')}
+        subtitle={data?.campaign?.name}
+        help="voting"
+        extra={
+          data?.votingOpen && (
+            <Tag
+              color={data.remaining > 0 ? 'blue' : 'default'}
+              style={{ fontSize: 14, padding: '4px 10px' }}
+            >
+              {t('Лишилось')}: {data.remaining} / {data.votesPerVoter}
+            </Tag>
+          )
+        }
+      />
       <LoadState loading={loading} error={error}>
         {data && (
           <>
@@ -84,6 +109,9 @@ export function VotingPage() {
                 showIcon
                 style={{ marginBottom: 16 }}
                 message={t('Голосування зараз не триває.')}
+                description={t(
+                  'Віддати голос можна лише на етапі «Голосування». Результати — на сторінці «Результати».',
+                )}
               />
             )}
             {user?.verificationStatus !== 'verified' && (
@@ -205,7 +233,16 @@ export function VotingPage() {
                         width: 120,
                         render: (v: number) => formatMoney(v),
                       },
-                      { title: t('Голоси'), dataIndex: 'totalVotes', align: 'right', width: 80 },
+                      ...(data.votesHidden
+                        ? []
+                        : [
+                            {
+                              title: t('Голоси'),
+                              dataIndex: 'totalVotes',
+                              align: 'right' as const,
+                              width: 80,
+                            },
+                          ]),
                       {
                         title: t('Мої'),
                         width: 90,
@@ -218,22 +255,27 @@ export function VotingPage() {
                             '—'
                           ),
                       },
-                      {
-                        title: '',
-                        width: 110,
-                        render: (_, p) => (
-                          <Button
-                            type="primary"
-                            size="small"
-                            icon={<PlusOutlined />}
-                            loading={busy === p.projectId}
-                            disabled={!data.votingOpen || data.channel === 'paper'}
-                            onClick={() => void vote(p)}
-                          >
-                            {t('Голос')}
-                          </Button>
-                        ),
-                      },
+                      // ліміти 5/2 перевіряє тригер БД, тому кнопка не блокується заздалегідь — повідомлення прийде з бази;
+                      // після закінчення етапу (або якщо вже голосував паперовим бюлетенем) кнопок немає взагалі
+                      ...(data.votingOpen && data.channel !== 'paper'
+                        ? [
+                            {
+                              title: '',
+                              width: 110,
+                              render: (_: unknown, p: BallotProject) => (
+                                <Button
+                                  type="primary"
+                                  size="small"
+                                  icon={<PlusOutlined />}
+                                  loading={busy === p.projectId}
+                                  onClick={() => confirmVote(p)}
+                                >
+                                  {t('Голос')}
+                                </Button>
+                              ),
+                            },
+                          ]
+                        : []),
                     ]}
                   />
                 </Card>

@@ -78,6 +78,8 @@ export interface ProjectListItem {
   moderatorName: string | null
   duplicateOfId: number | null
   photoId: number | null
+  authorId: number
+  submittedAt: string | null
 }
 
 export interface BudgetItem {
@@ -200,6 +202,7 @@ export interface MyBallot {
   remaining: number
   channel: string | null
   projects: BallotProject[]
+  votesHidden: boolean
 }
 
 export interface ResultRow {
@@ -253,8 +256,58 @@ export interface WinnerRow {
   regNumber: string | null
   title: string
   votes: number
+  voterCount: number
   cost: number
   isWinner: boolean
+  /** залишок ліміту категорії на момент розгляду проєкту */
+  balanceBefore: number
+  reason: string
+}
+
+/** Рядок табличної функції dbo.fn_CategoryBudgetBalance. */
+export interface CategoryBalance {
+  categoryId: number
+  categoryName: string
+  budgetLimit: number
+  used: number
+  balance: number
+  winners: number
+}
+
+export interface RatingResponse {
+  campaign: Campaign
+  final: boolean
+  tieRule: string
+  balances: CategoryBalance[]
+  rows: WinnerRow[]
+}
+
+export interface StageTransitionCheck {
+  from: string
+  to: string
+  allowed: boolean
+  blocker: string | null
+  consequences: string[]
+  warnings: string[]
+}
+
+/** Виборець для оператора: спосіб голосування і залишок (fn_RemainingVotes). */
+export interface VoterStatus {
+  userId: number
+  fullName: string
+  birthDate: string | null
+  verificationStatus: string
+  isBlocked: boolean
+  districtName: string | null
+  channel: string | null
+  remaining: number
+}
+
+export interface StatusHistoryItem {
+  createdAt: string
+  userName: string | null
+  fromStatus: string | null
+  toStatus: string
 }
 
 export interface AuditRow {

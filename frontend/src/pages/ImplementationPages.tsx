@@ -29,6 +29,7 @@ import {
   List,
   Modal,
   Progress,
+  Tag,
   Row,
   Select,
   Space,
@@ -136,52 +137,80 @@ function StagesTimeline({
   const { t } = useTranslation()
   return (
     <Timeline
-      items={d.stages.map((s) => ({
-        color: s.status === 'done' ? 'green' : s.status === 'in_progress' ? 'blue' : 'gray',
-        children: (
-          <Card size="small" style={{ marginBottom: 4 }}>
-            <Flex justify="space-between" wrap gap={8}>
-              <div>
-                <b>
-                  {s.stageNo}. {s.name}
-                </b>{' '}
-                <StatusTag status={s.status} label={stageStatus[s.status]} />
-                <div style={{ color: '#8c8c8c', fontSize: 12 }}>
-                  {t('Строк')}: {formatDate(s.plannedEndDate)}
-                  {s.completedAt && ` · ${t('виконано')} ${formatDate(s.completedAt)}`}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
+      items={d.stages.map((s) => {
+        // етап прострочено: плановий строк минув, а його не виконано
+        const overdue =
+          s.status !== 'done' && new Date(s.plannedEndDate) < new Date(new Date().toDateString())
+        return {
+          color: overdue
+            ? 'red'
+            : s.status === 'done'
+              ? 'green'
+              : s.status === 'in_progress'
+                ? 'blue'
+                : 'gray',
+          children: (
+            <Card size="small" style={{ marginBottom: 4, borderColor: overdue ? '#f3b9b9' : undefined }}>
+              <Flex justify="space-between" wrap gap={8}>
                 <div>
-                  {t('План')}: {formatMoney(s.plannedCost)}
+                  <b>
+                    {s.stageNo}. {s.name}
+                  </b>{' '}
+                  <StatusTag status={s.status} label={stageStatus[s.status]} />
+                  {overdue && (
+                    <Tag color="error" style={{ marginInlineStart: 6 }}>
+                      {t('Прострочено')}
+                    </Tag>
+                  )}
+                  <div style={{ color: overdue ? '#c62828' : '#8c8c8c', fontSize: 12 }}>
+                    {t('Строк')}: {formatDate(s.plannedEndDate)}
+                    {s.completedAt && ` · ${t('виконано')} ${formatDate(s.completedAt)}`}
+                  </div>
                 </div>
-                <div>
-                  {t('Факт')}: {s.actualCost != null ? formatMoney(s.actualCost) : '—'}
+                <div style={{ textAlign: 'right' }}>
+                  <div>
+                    {t('План')}: {formatMoney(s.plannedCost)}
+                  </div>
+                  <div>
+                    {t('Факт')}: {s.actualCost != null ? formatMoney(s.actualCost) : '—'}
+                  </div>
+                  {s.actualCost != null && s.plannedCost > 0 && (
+                    <Progress
+                      size="small"
+                      style={{ width: 160, margin: 0 }}
+                      percent={Math.min(100, Math.round((s.actualCost / s.plannedCost) * 100))}
+                      status={s.actualCost > s.plannedCost ? 'exception' : 'normal'}
+                      format={(v) => `${v}%`}
+                    />
+                  )}
                 </div>
-              </div>
-            </Flex>
-            {s.reports.map((r) => (
-              <div key={r.reportId} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f0' }}>
-                <Space size={6} wrap>
-                  <Typography.Text strong>{t('Звіт виконавця')}</Typography.Text>
-                  <Typography.Text type="secondary">
-                    {r.authorName}, {formatDateTime(r.submittedAt)}
-                  </Typography.Text>
-                  {!isPublic && <StatusTag status={r.status} label={reportStatus[r.status]} />}
-                </Space>
-                <div>{r.body}</div>
-                {!isPublic && r.reviewComment && r.status !== 'submitted' && (
-                  <Typography.Text type="secondary">
-                    {t('Коментар')}: {r.reviewComment}
-                  </Typography.Text>
-                )}
-                <Files files={r.attachments} isPublic={isPublic} />
-              </div>
-            ))}
-            {extra?.(s)}
-          </Card>
-        ),
-      }))}
+              </Flex>
+              {s.reports.map((r) => (
+                <div
+                  key={r.reportId}
+                  style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f0' }}
+                >
+                  <Space size={6} wrap>
+                    <Typography.Text strong>{t('Звіт виконавця')}</Typography.Text>
+                    <Typography.Text type="secondary">
+                      {r.authorName}, {formatDateTime(r.submittedAt)}
+                    </Typography.Text>
+                    {!isPublic && <StatusTag status={r.status} label={reportStatus[r.status]} />}
+                  </Space>
+                  <div>{r.body}</div>
+                  {!isPublic && r.reviewComment && r.status !== 'submitted' && (
+                    <Typography.Text type="secondary">
+                      {t('Коментар')}: {r.reviewComment}
+                    </Typography.Text>
+                  )}
+                  <Files files={r.attachments} isPublic={isPublic} />
+                </div>
+              ))}
+              {extra?.(s)}
+            </Card>
+          ),
+        }
+      })}
     />
   )
 }

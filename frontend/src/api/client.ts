@@ -83,7 +83,7 @@ async function send(
           : undefined,
     })
   } catch {
-    throw new ApiError(i18n.t('Сервер недоступний. Перевірте, що бекенд запущено.'), 0)
+    throw new ApiError(i18n.t('Немає зв’язку із сервером. Перевірте інтернет і спробуйте ще раз.'), 0)
   }
 
   if (res.status === 401 && auth && retry) {
